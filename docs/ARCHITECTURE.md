@@ -26,6 +26,9 @@
 | 8 | Monitoramento: logs estruturados + `agent_executions` + Flower | Suficiente para 1 operador | Operação contínua em produção → Prometheus/Grafana |
 | 9 | LLM: **nenhum** na partida; interface plugável (Ollama local / API paga com aprovação) | Fontes estruturadas não precisam de LLM | Primeira fonte com texto livre relevante |
 | 10 | Tiles: OpenFreeMap ou PMTiles self-hosted | Gratuito, sem chave | — |
+| 11 | SQLAlchemy **síncrono** (psycopg 3) na API e nos workers | Celery é síncrono; FastAPI roda deps síncronas em threadpool; um só estilo de código | Gargalo medido de I/O na API |
+| 12 | Frontend como *backend-for-frontend*: o navegador só fala com o Next.js; tokens JWT ficam em cookies httpOnly; `proxy.ts` renova o access token | Tokens nunca expostos ao JavaScript; CORS irrelevante | — |
+| 13 | Dependências Python com **uv** (lockfile `backend/uv.lock`) | Rápido, reprodutível, já instalado | — |
 
 ## 3. Componentes
 
@@ -144,4 +147,5 @@ Cada conector tem testes de contrato com fixtures gravadas (respostas reais anon
 | Fase | Status |
 |---|---|
 | 1 — Arquitetura | ✅ documentação e estrutura |
-| 2–8 | Pendente — ver [ROADMAP.md](ROADMAP.md) |
+| 2 — Fundação | 🚧 código pronto; validação com Docker pendente |
+| 3–8 | Pendente — ver [ROADMAP.md](ROADMAP.md) |

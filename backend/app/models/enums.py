@@ -1,0 +1,112 @@
+"""Enum types shared by models. Values mirror docs/DATABASE_SCHEMA.md."""
+
+from enum import StrEnum
+
+
+class RegionStatus(StrEnum):
+    NOT_STARTED = "NOT_STARTED"
+    QUEUED = "QUEUED"
+    IN_PROGRESS = "IN_PROGRESS"
+    PARTIALLY_COMPLETED = "PARTIALLY_COMPLETED"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    REQUIRES_REVIEW = "REQUIRES_REVIEW"
+
+
+class JobStatus(StrEnum):
+    QUEUED = "QUEUED"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+    PARTIALLY_COMPLETED = "PARTIALLY_COMPLETED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+    SKIPPED = "SKIPPED"
+
+
+class RegionLevel(StrEnum):
+    DISTRICT = "DISTRICT"
+    NEIGHBORHOOD = "NEIGHBORHOOD"
+    LOCALITY = "LOCALITY"
+    POSTAL_AREA = "POSTAL_AREA"
+    GRID_CELL = "GRID_CELL"
+
+
+class SourceStatus(StrEnum):
+    PENDING_APPROVAL = "PENDING_APPROVAL"
+    ACTIVE = "ACTIVE"
+    PAUSED = "PAUSED"
+    BLOCKED = "BLOCKED"
+    RETIRED = "RETIRED"
+
+
+class IntegrationType(StrEnum):
+    OFFICIAL_API = "OFFICIAL_API"
+    LICENSED_FEED = "LICENSED_FEED"
+    OPEN_DATA = "OPEN_DATA"
+    PARTNER = "PARTNER"
+    CRAWLER = "CRAWLER"
+
+
+class PermissionType(StrEnum):
+    OFFICIAL_API_TERMS = "OFFICIAL_API_TERMS"
+    OPEN_DATA_LICENSE = "OPEN_DATA_LICENSE"
+    WRITTEN_AGREEMENT = "WRITTEN_AGREEMENT"
+    LICENSE_PURCHASED = "LICENSE_PURCHASED"
+    TOS_ALLOWS = "TOS_ALLOWS"
+
+
+class PermissionStatus(StrEnum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    DENIED = "DENIED"
+    EXPIRED = "EXPIRED"
+    REVOKED = "REVOKED"
+
+
+class OfferType(StrEnum):
+    SALE = "SALE"
+    RENT = "RENT"
+
+
+class ListingStatus(StrEnum):
+    ACTIVE = "ACTIVE"
+    NOT_SEEN = "NOT_SEEN"
+    REMOVED = "REMOVED"
+
+
+class ValidationStatus(StrEnum):
+    PENDING = "PENDING"
+    VALID = "VALID"
+    WARNING = "WARNING"
+    INVALID = "INVALID"
+    REQUIRES_REVIEW = "REQUIRES_REVIEW"
+
+
+class ExtractionMethod(StrEnum):
+    SOURCE_FIELD = "SOURCE_FIELD"
+    RULE = "RULE"
+    LLM = "LLM"
+    MANUAL = "MANUAL"
+    ESTIMATE = "ESTIMATE"
+
+
+class HistoryEvent(StrEnum):
+    FIRST_SEEN = "FIRST_SEEN"
+    PRICE_CHANGE = "PRICE_CHANGE"
+    STATUS_CHANGE = "STATUS_CHANGE"
+    NOT_SEEN = "NOT_SEEN"
+    REMOVED = "REMOVED"
+    REAPPEARED = "REAPPEARED"
+
+
+class DedupDecision(StrEnum):
+    PENDING = "PENDING"
+    AUTO_LINKED = "AUTO_LINKED"
+    SAME_PROPERTY = "SAME_PROPERTY"
+    DIFFERENT = "DIFFERENT"
+
+
+class UserRole(StrEnum):
+    ADMIN = "ADMIN"
+    ANALYST = "ANALYST"
+    VIEWER = "VIEWER"

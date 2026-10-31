@@ -37,7 +37,11 @@ Infra: Docker Compose · GitHub Actions.
 - Simplicidade: sem abstração especulativa. Simplificação deliberada com teto conhecido leva comentário `# ponytail: <teto e caminho de upgrade>`.
 
 ## Comandos
-(serão preenchidos na Fase 2 — `docker compose up`, testes, migrations)
+Ver tabela em `README.md` (§ Como rodar). Essenciais:
+- `docker compose up -d --build` · `docker compose exec api pytest` · `docker compose exec api ruff check .`
+- Migrations: `docker compose exec api alembic revision --autogenerate -m "..."` — **revise o arquivo gerado** (enums, PostGIS, views) antes de commitar.
+- Backend sem Docker (só testes unitários): `cd backend && uv run pytest tests/test_security.py`.
+- Frontend: Next.js 16 — leia `frontend/AGENTS.md` e `frontend/node_modules/next/dist/docs/` antes de escrever código (APIs mudaram: `proxy.ts` em vez de middleware, Cache Components ativo → leitura de cookies só dentro de `<Suspense>`).
 
 ## Fluxo de trabalho
 - Plugin **superpowers** (habilitado em `.claude/settings.json`): usar brainstorming/writing-plans para features, TDD, systematic-debugging, verification-before-completion antes de declarar algo pronto.

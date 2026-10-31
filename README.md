@@ -2,7 +2,7 @@
 
 Plataforma de inteligência imobiliária internacional: coleta de fontes **autorizadas**, padronização, deduplicação de imóveis entre portais, histórico de preços, controle de cobertura geográfica com PostGIS e dashboard com mapas interativos.
 
-> **Status:** Fase 1 (arquitetura) concluída. Ainda não há código de aplicação — ver [docs/ROADMAP.md](docs/ROADMAP.md).
+> **Status:** Fase 2 (fundação) em andamento — ver [docs/ROADMAP.md](docs/ROADMAP.md). Ainda não há coleta de dados.
 
 ## Documentação
 
@@ -38,4 +38,24 @@ docs/           Documentação do projeto
 
 ## Como rodar
 
-Disponível a partir da Fase 2 (`docker compose up`).
+Pré-requisitos: Docker Desktop (com WSL2 no Windows).
+
+```bash
+cp .env.example .env          # depois troque POSTGRES_PASSWORD (também nas URLs) e JWT_SECRET
+docker compose up -d --build  # db, redis, api, worker, beat, frontend, backup
+docker compose exec api python -m app.cli create-user --email voce@exemplo.com --role ADMIN
+```
+
+- Frontend: http://localhost:3000 · API: http://localhost:8000/api/v1 · OpenAPI: http://localhost:8000/docs
+- Gerar um `JWT_SECRET`: `python -c "import secrets; print(secrets.token_urlsafe(64))"`
+
+| Tarefa | Comando |
+|---|---|
+| Testes backend | `docker compose exec api pytest` |
+| Lint backend | `docker compose exec api ruff check .` |
+| Nova migration | `docker compose exec api alembic revision --autogenerate -m "descricao"` |
+| Aplicar migrations | `docker compose exec api alembic upgrade head` |
+| Lint/build frontend | `cd frontend && npm run lint && npm run build` |
+| Restaurar backup | `docker compose run --rm --entrypoint sh backup /scripts/restore.sh /backups/<arquivo>.dump [banco]` |
+
+Backups diários ficam em `./backups/` (fora do git).

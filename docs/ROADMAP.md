@@ -8,13 +8,13 @@ Regra: **não avançar de fase sem cumprir o critério de saída da anterior.** 
 |---|---|---|
 | 2026-10-31 | Plano da Fase 1 aprovado: monólito modular, agentes como tarefas Celery, LangGraph e Browser Use adiados | Responsável |
 | 2026-10-31 | Padrões adotados até decisão contrária: cidade piloto **Dublin**; primeira fonte **Property Price Register (IE)**; **sem LLM** na partida | Recomendação aprovada com o plano |
+| 2026-10-31 | Runtime de containers: **Docker Desktop** (requer WSL2) | Responsável |
 
 ### Pendentes (bloqueiam a fase indicada)
 
 | Decisão | Bloqueia |
 |---|---|
-| Runtime de containers: Docker Desktop (verificar licença) vs Podman/Rancher Desktop | Fase 2 |
-| Criar repositório GitHub privado `real-estate-intelligence`? | Fase 2 (CI) |
+| Criar repositório GitHub privado `real-estate-intelligence`? | CI rodar de fato (workflow já existe) |
 | Solicitar acesso a APIs de anúncios (Daft.ie / idealista) — ação do responsável | Fase 3 (anúncios) |
 | Provedor de LLM (nenhum / Ollama local / API paga) | Primeira fonte com texto livre |
 
@@ -24,7 +24,14 @@ Regra: **não avançar de fase sem cumprir o critério de saída da anterior.** 
 Estrutura de pastas, documentação, CLAUDE.md, subagentes, skills, git.
 **Saída:** aprovação dos documentos.
 
-### Fase 2 — Fundação (~1 semana)
+### Fase 2 — Fundação (~1 semana) 🚧
+
+Estado (2026-10-31):
+- ✅ Código: compose, Dockerfiles, FastAPI (config, logs JSON, `/health`, login/refresh/me, papéis, rate limit), modelos SQLAlchemy das 17 tabelas, Alembic configurado, Celery (worker/beat), CLI `create-user`, frontend Next.js 16 com login via cookies httpOnly, workflow de CI, backup/restore.
+- ✅ Verificado sem Docker: lint backend, testes unitários de segurança, DDL de todos os modelos compila para Postgres, `npm run lint`, `tsc`, `npm run build`.
+- ⏳ Bloqueado até o Docker estar instalado: gerar e revisar a migration inicial (extensões `postgis`/`citext`, view materializada `region_neighbors`), rodar testes de integração, subir o compose, testar backup/restore e login de ponta a ponta.
+
+Escopo:
 - `docker-compose.yml` (db, redis, api, worker, beat, frontend, backup).
 - Backend: FastAPI, config, logging, sessão SQLAlchemy, Alembic com **migration inicial do schema completo**.
 - Autenticação JWT + papéis; rate limiting; `/health`.

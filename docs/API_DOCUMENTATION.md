@@ -1,15 +1,16 @@
 # API — Real Estate Intelligence
 
-> Status: **planejada** (nada implementado). A documentação interativa será gerada pelo FastAPI em `/docs` (OpenAPI); este arquivo lista o contrato pretendido e é atualizado a cada endpoint entregue.
+> Status: Fase 2 — autenticação e health implementados (✅); demais endpoints planejados. A documentação interativa será gerada pelo FastAPI em `/docs` (OpenAPI); este arquivo lista o contrato pretendido e é atualizado a cada endpoint entregue.
 
 Base: `/api/v1` · Autenticação: `Authorization: Bearer <JWT>` · Papéis: ADMIN, ANALYST, VIEWER.
 Paginação: `?limit=&cursor=` (cursor opaco). Erros: `{"detail": "...", "code": "..."}`.
 
 | Método | Rota | Papel | Descrição | Fase |
 |---|---|---|---|---|
-| POST | `/auth/login` | — | Emite access + refresh token | 2 |
-| POST | `/auth/refresh` | — | Renova access token | 2 |
-| GET | `/health` | — | Liveness/readiness (db, redis) | 2 |
+| POST | `/auth/login` | — | ✅ Emite access + refresh token. Body `{email, password}`. Limite `LOGIN_RATE_LIMIT` (5/min) | 2 |
+| POST | `/auth/refresh` | — | ✅ Body `{refresh_token}` → novo par de tokens | 2 |
+| GET | `/auth/me` | qualquer | ✅ `{id, email, role}` do usuário autenticado | 2 |
+| GET | `/health` | — | ✅ `{status, db, redis}`; 503 se algum falhar | 2 |
 | GET | `/sources` | VIEWER | Lista fontes e status | 3 |
 | POST | `/sources` | ADMIN | Cadastra fonte (nasce PENDING_APPROVAL) | 3 |
 | POST | `/sources/{id}/permissions` | ADMIN | Registra/aprova permissão com evidência | 3 |
