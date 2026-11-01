@@ -22,10 +22,9 @@ Regra geral: **código convencional para operações determinísticas; IA apenas
 | 09 | Coverage Monitor | `default` | Não | regions, search_coverage, sources | search_coverage, search_jobs, regions.status |
 
 ### 01 — Master Orchestrator
-- Celery Beat dispara ciclos; o orquestrador escolhe jobs `QUEUED` por prioridade e despacha respeitando **rate limit e orçamento diário por fonte**.
-- Evita redundância via índice único parcial em `search_jobs` (o banco recusa duplicatas).
-- Detecta jobs travados (IN_PROGRESS sem heartbeat) → reenfileira com `attempt+1` ou marca FAILED.
-- Controla a expansão: profundidade máxima e orçamento por ciclo.
+- **Implementado** (`app/agents/orchestrator.py`, task `agents.orchestrate` a cada `ORCHESTRATOR_INTERVAL_SECONDS`): (1) jobs IN_PROGRESS há mais de 30 min voltam à fila (FAILED após 3 tentativas); (2) falhas transitórias retentadas com backoff 10·2^(n-1) min — bloqueios, recusas do gate e fontes não ACTIVE nunca; (3) Coverage Monitor planeja até 3 jobs por fonte, limitado ao orçamento restante do dia; (4) despacha jobs vencidos por prioridade para a fila `collect`.
+- Redundância evitada pelo índice único parcial em `search_jobs` e por lock consultivo do ciclo.
+- Expansão desligável: `ORCHESTRATOR_EXPANSION=false`.
 
 ### 02 — Source Discovery
 - Cadastro assistido de fontes; checagem automática de disponibilidade e robots.txt.

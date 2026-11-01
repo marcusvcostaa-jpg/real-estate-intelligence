@@ -151,9 +151,8 @@ def test_rate_limit_requeues_job(db, redis_client):
     assert second.status == JobStatus.QUEUED
     assert second.scheduled_for is not None
     assert calls == []
-    # The refused attempt did not consume the daily budget.
-    day_keys = list(redis_client.scan_iter("rl:ie_ppr:d:*"))
-    assert [int(redis_client.get(k)) for k in day_keys] == [1]
+    # The refused attempt made no request, so it is not counted against the daily budget.
+    assert count(db, CrawlLog) == 1
 
 
 def test_only_one_active_job_per_search(db):
@@ -178,3 +177,18 @@ def test_only_one_active_job_per_search(db):
 )
 def test_derive_region_status(statuses, expected):
     assert derive_region_status(statuses) == expected
+
+
+def test_daily_budget_counts_from_postgres_not_redis(db, redis_client):
+    region, source = setup_source(db)
+    source.daily_request_budget = 1
+    db.commit()
+    first = run_job(db, create_job(db, region.id, source.id, {}, "MANUAL").id,
+                    redis_client=redis_client, http_client=zip_client())  # fmt: skip
+    assert first.status == JobStatus.COMPLETED
+    redis_client.flushdb()  # Redis restart loses every counter...
+    calls = []
+    second = run_job(db, create_job(db, region.id, source.id, {}, "MANUAL").id,
+                     redis_client=redis_client, http_client=zip_client(calls))  # fmt: skip
+    assert second.status == JobStatus.QUEUED  # ...but the budget still holds
+    assert calls == []

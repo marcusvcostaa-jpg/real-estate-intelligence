@@ -13,7 +13,7 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 import redis
-from sqlalchemy import or_, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -80,26 +80,44 @@ def gate_refusal(db: Session, source: Source) -> str | None:
     return None
 
 
-def take_request_slot(r: redis.Redis, source: Source) -> None:
-    """Fixed-window limits per source: requests per minute and per UTC day."""
+def requests_today(db: Session, source: Source) -> int:
+    """Requests made to the source today (UTC), counted from crawl_logs in Postgres — the
+    source of truth, so the daily budget survives a Redis restart. Failure rows count too
+    (conservative)."""
+    today = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+    return db.scalar(
+        select(func.count())
+        .select_from(CrawlLog)
+        .where(CrawlLog.source_id == source.id, CrawlLog.created_at >= today)
+    )
+
+
+def remaining_budget(db: Session, source: Source) -> int | None:
+    """Requests left today for the source, or None if it has no daily budget."""
+    if not source.daily_request_budget:
+        return None
+    return max(0, source.daily_request_budget - requests_today(db, source))
+
+
+def take_request_slot(r: redis.Redis, db: Session, source: Source) -> None:
+    """Daily budget from Postgres; per-minute limit as a fixed window in Redis.
+
+    ponytail: fixed windows allow two requests a few seconds apart across a minute boundary,
+    and two concurrent jobs of one source can overshoot the daily budget by one; switch to a
+    sliding window / per-source lock if a source needs strict spacing."""
     now = datetime.now(UTC)
+    if remaining_budget(db, source) == 0:
+        raise RateLimited(
+            (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        )
     minute_key = f"rl:{source.code}:m:{now:%Y%m%d%H%M}"
-    day_key = f"rl:{source.code}:d:{now:%Y%m%d}"
     pipe = r.pipeline()
     pipe.incr(minute_key)
     pipe.expire(minute_key, 120)
-    pipe.incr(day_key)
-    pipe.expire(day_key, 2 * 86400)
-    per_minute, _, per_day, _ = pipe.execute()
-    retry_at = None
-    if source.daily_request_budget and per_day > source.daily_request_budget:
-        retry_at = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-    elif per_minute > source.rate_limit_per_minute:
-        retry_at = now.replace(second=0, microsecond=0) + timedelta(minutes=1)
-    if retry_at:
-        # A refused attempt makes no request, so it must not consume the budget.
-        r.pipeline().decr(minute_key).decr(day_key).execute()
-        raise RateLimited(retry_at)
+    per_minute, _ = pipe.execute()
+    if per_minute > source.rate_limit_per_minute:
+        r.decr(minute_key)  # a refused attempt makes no request
+        raise RateLimited(now.replace(second=0, microsecond=0) + timedelta(minutes=1))
 
 
 def create_job(
@@ -238,7 +256,7 @@ def run_job(
         connector = load_connector(source.code)(client)
         cursor = job.next_cursor
         while True:
-            take_request_slot(r, source)
+            take_request_slot(r, db, source)
             page_started = time.perf_counter()
             page = connector.search(region_ref, job.filters, cursor)
             new = store_transactions(db, source.id, region.id, page.items)

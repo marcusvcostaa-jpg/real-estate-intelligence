@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     scraper_user_agent: str = "RealEstateIntelligenceBot/0.1"
     cache_dir: str = ".cache"  # downloaded source files (backend/.cache in the dev container)
 
+    orchestrator_interval_seconds: int = 300
+    orchestrator_expansion: bool = True  # False: only refresh what is already covered
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

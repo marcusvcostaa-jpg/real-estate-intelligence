@@ -214,6 +214,35 @@ def expand(code: str, max_jobs: int, run: bool) -> None:
             print("nothing to do: no due refresh and no unsearched neighbour of a completed area")
 
 
+def orchestrate_once(expansion: bool, run: bool) -> None:
+    from app.agents.orchestrator import orchestrate
+    from app.tasks.agents import collect_job_task
+
+    dispatched: list[int] = []
+    with SessionLocal() as db:
+        dispatch = dispatched.append if run else (lambda job_id: collect_job_task.delay(job_id))
+        print(orchestrate(db, dispatch, expansion=expansion))
+        for job_id in dispatched:
+            job = run_job(db, job_id)
+            print(
+                f"  job={job.id} -> {job.status} records={job.listings_found} "
+                f"error={job.last_error}"
+            )
+
+
+def set_source_status(code: str, status: SourceStatus, note: str) -> None:
+    with SessionLocal() as db:
+        source = db.scalar(select(Source).where(Source.code == code))
+        if source is None:
+            sys.exit(f"Source {code} not found.")
+        previous = source.status
+        source.status = status
+        entry = f"[{datetime.now(UTC):%Y-%m-%d}] {previous} -> {status}: {note}"
+        source.notes = f"{source.notes}\n{entry}" if source.notes else entry
+        db.commit()
+        print(f"{code}: {previous} -> {status}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="app.cli")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -258,6 +287,15 @@ def main() -> None:
     p.add_argument("--max", type=int, default=3)
     p.add_argument("--run", action="store_true")
 
+    p = sub.add_parser("orchestrate")
+    p.add_argument("--no-expansion", action="store_true")
+    p.add_argument("--run", action="store_true")
+
+    p = sub.add_parser("set-source-status")
+    p.add_argument("code")
+    p.add_argument("status", choices=[s.value for s in SourceStatus])
+    p.add_argument("--note", required=True)
+
     args = parser.parse_args()
     match args.command:
         case "create-user":
@@ -280,6 +318,10 @@ def main() -> None:
             import_boundaries(args.source_location, args.subdivide)
         case "expand":
             expand(args.source, args.max, args.run)
+        case "orchestrate":
+            orchestrate_once(not args.no_expansion, args.run)
+        case "set-source-status":
+            set_source_status(args.code, SourceStatus(args.status), args.note)
 
 
 if __name__ == "__main__":

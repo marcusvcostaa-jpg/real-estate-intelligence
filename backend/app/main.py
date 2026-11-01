@@ -4,7 +4,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
-from app.api import auth, health, regions
+from app.api import auth, health, operations, regions
 from app.api.rate_limit import limiter
 from app.core.config import get_settings
 from app.core.logging import setup_logging
@@ -28,3 +28,4 @@ API_PREFIX = "/api/v1"
 app.include_router(health.router, prefix=API_PREFIX)
 app.include_router(auth.router, prefix=API_PREFIX)
 app.include_router(regions.router, prefix=API_PREFIX)
+app.include_router(operations.router, prefix=API_PREFIX)

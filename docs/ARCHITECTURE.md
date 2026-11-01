@@ -32,6 +32,8 @@
 | 14 | Na Irlanda, o **condado** é a área de pesquisa de topo (registro em `cities` + região raiz) | É a granularidade do PPR e dos limites oficiais; expansão = condados vizinhos | Fonte de anúncios com granularidade de cidade/bairro |
 | 15 | Cobertura **herdada** pelos descendentes | Fonte que pesquisa por condado cobre suas sub-regiões | — |
 | 16 | Worker do MapLibre servido por route handler (`/vendor/maplibre-worker`) | O bundler não serve o worker ESM da maplibre v6 | Bundler passar a servir o worker |
+| 17 | Orçamento diário por fonte contado em `crawl_logs` (Postgres); Redis só na janela por minuto | Redis é descartável: um reinício zerou o contador | — |
+| 18 | Exclusão mútua por locks consultivos do Postgres em conexão dedicada | Sem tabela de locks; sobrevive aos commits do trabalho protegido | Vários bancos/instâncias |
 
 ## 3. Componentes
 
@@ -73,6 +75,7 @@
 | `beat` | mesma imagem da API | Agendamentos |
 | `frontend` | Node 22 LTS | Next.js |
 | `backup` | `postgis/postgis` | `pg_dump` agendado para volume local |
+| `flower` | `mher/flower:2.0.1` | Monitor do Celery (127.0.0.1:5555, basic auth) |
 
 ## 4. Fluxo principal
 
@@ -154,4 +157,5 @@ Cada conector tem testes de contrato com fixtures gravadas (respostas reais anon
 | 3 — Primeira fonte | ✅ `ie_ppr` ativa (Dublin) |
 | 4 — Tratamento | ✅ transações (validação + dedup, precisão 99,5%); anúncios aguardam fonte |
 | 5 — Geografia | ✅ limites oficiais, herança, expansão real (4 condados), mapa |
-| 6–8 | Pendente — ver [ROADMAP.md](ROADMAP.md) |
+| 6 — Agentes | ✅ orquestrador automático, filas, recuperação, Flower |
+| 7–8 | Pendente — ver [ROADMAP.md](ROADMAP.md) |

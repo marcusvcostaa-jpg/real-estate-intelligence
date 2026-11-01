@@ -1,6 +1,6 @@
 # API — Real Estate Intelligence
 
-> Status: Fase 5 — autenticação, health, regiões e cobertura implementados (✅); demais endpoints planejados. A documentação interativa será gerada pelo FastAPI em `/docs` (OpenAPI); este arquivo lista o contrato pretendido e é atualizado a cada endpoint entregue.
+> Status: Fase 6 — autenticação, health, regiões, cobertura e operação implementados (✅); demais endpoints planejados. A documentação interativa será gerada pelo FastAPI em `/docs` (OpenAPI); este arquivo lista o contrato pretendido e é atualizado a cada endpoint entregue.
 
 Base: `/api/v1` · Autenticação: `Authorization: Bearer <JWT>` · Papéis: ADMIN, ANALYST, VIEWER.
 Paginação: `?limit=&cursor=` (cursor opaco). Erros: `{"detail": "...", "code": "..."}`.
@@ -11,7 +11,6 @@ Paginação: `?limit=&cursor=` (cursor opaco). Erros: `{"detail": "...", "code":
 | POST | `/auth/refresh` | — | ✅ Body `{refresh_token}` → novo par de tokens | 2 |
 | GET | `/auth/me` | qualquer | ✅ `{id, email, role}` do usuário autenticado | 2 |
 | GET | `/health` | — | ✅ `{status, db, redis}`; 503 se algum falhar | 2 |
-| GET | `/sources` | VIEWER | Lista fontes e status | 3 |
 | POST | `/sources` | ADMIN | Cadastra fonte (nasce PENDING_APPROVAL) | 3 |
 | POST | `/sources/{id}/permissions` | ADMIN | Registra/aprova permissão com evidência | 3 |
 | GET | `/properties` | VIEWER | Busca com filtros (país, cidade, região, tipo, categoria, preço, área, quartos, banheiros, garagem, fonte, data) | 3–7 |
@@ -24,7 +23,10 @@ Paginação: `?limit=&cursor=` (cursor opaco). Erros: `{"detail": "...", "code":
 | GET | `/regions?parent_id=` | VIEWER | ✅ GeoJSON FeatureCollection (topo, ou filhas de `parent_id`); propriedades: `id, name, level, status, parent_id, last_searched_at, children, sales, sales_12m, median_12m`; `median_basis` descreve a mediana (transacionado, mercado pleno, com IVA, 12 meses). Geometria simplificada só para exibição | 5 |
 | GET | `/regions/{id}` | VIEWER | ✅ Detalhe: região pai, contadores (`sales`, `properties`, filhos), mediana, `coverage[]` por fonte (status, concluída, próxima), `neighbors[]`; 404 se não existir | 5 |
 | GET | `/coverage/summary` | VIEWER | ✅ `regions_by_status` (topo e todas), `totals` (imóveis, transações, anúncios, fontes ativas, última atualização, revisões de dedup pendentes), `attributions[]` obrigatórias | 5 |
-| GET | `/jobs` | ANALYST | Jobs com filtros por status/fonte/região | 6 |
+| GET | `/jobs?status=&limit=` | ANALYST | ✅ Jobs mais recentes: região, fonte, status, gatilho, tentativa, agendamento, contadores, último erro | 6 |
+| POST | `/jobs/{id}/retry` | ADMIN | ✅ Reenfileira job FAILED/SKIPPED/CANCELLED (409 se houver outro ativo para a mesma pesquisa); o Collector reaplica todas as verificações | 6 |
+| GET | `/agents/executions?agent=&limit=` | ANALYST | ✅ Execuções dos agentes (orquestrador, collector, dedup) com saída e erro | 6 |
+| GET | `/sources` | VIEWER | ✅ Fontes com status, limites, **requisições restantes hoje**, última permissão e atribuição | 6 |
 | POST | `/jobs` | ADMIN | Pesquisa manual de uma região × fonte | 6 |
 | GET | `/analytics/kpis` | VIEWER | Indicadores da página inicial | 7 |
 | GET | `/analytics/regions` | VIEWER | Preço médio, preço/m², área média etc. por região | 7 |

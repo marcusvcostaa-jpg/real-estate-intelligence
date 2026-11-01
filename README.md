@@ -2,7 +2,7 @@
 
 Plataforma de inteligência imobiliária internacional: coleta de fontes **autorizadas**, padronização, deduplicação de imóveis entre portais, histórico de preços, controle de cobertura geográfica com PostGIS e dashboard com mapas interativos.
 
-> **Status:** Fase 5 concluída — limites oficiais da Irlanda, expansão automática de Dublin para Meath, Kildare e Wicklow (361 mil vendas, 320 mil imóveis) e mapa de cobertura em `/map`. Ver [docs/ROADMAP.md](docs/ROADMAP.md).
+> **Status:** Fase 6 concluída — orquestrador automático (Celery Beat) coleta, valida, deduplica e expande a cobertura sozinho, dentro do orçamento de cada fonte; 4 condados irlandeses cobertos, mapa em `/map`, monitor em `:5555`. Ver [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Documentação
 
@@ -58,6 +58,9 @@ docker compose exec api python -m app.cli create-user --email voce@exemplo.com -
 | Lint/build frontend | `cd frontend && npm run lint && npm run build` |
 | Importar limites oficiais | `docker compose exec api python -m app.cli import-boundaries --source-location ie_ppr --subdivide Dublin` |
 | Expandir cobertura | `docker compose exec api python -m app.cli expand --source ie_ppr --max 3 --run` |
+| Um ciclo do orquestrador | `docker compose exec api python -m app.cli orchestrate` (`--run` executa sem fila; `--no-expansion`) |
+| Revisar fonte bloqueada | `docker compose exec api python -m app.cli set-source-status ie_ppr ACTIVE --note "motivo"` |
+| Monitor do Celery | http://localhost:5555 (usuário:senha em `FLOWER_BASIC_AUTH` no `.env`) |
 | Cadastrar cidade/região | `docker compose exec api python -m app.cli add-city --iso2 IE --country-name Ireland --currency EUR --city Dublin --admin1 "County Dublin" --region-name "County Dublin" --lat 53.3498 --lon -6.2603 --source-location ie_ppr=Dublin` |
 | Registrar / aprovar fonte | `... app.cli register-source ie_ppr` · `... app.cli approve-permission ie_ppr --note "..." [--reviewer admin@...]` |
 | Coletar | `docker compose exec api python -m app.cli collect --source ie_ppr --region-id 1` |

@@ -107,7 +107,18 @@ Escopo original:
 - Skill de projeto `seed-city`, escrita a partir da importação de Dublin.
 **Saída:** expansão automática observável no mapa a partir de uma semente.
 
-### Fase 6 — Agentes (~1 semana)
+### Fase 6 — Agentes (~1 semana) ✅
+
+Entregue (2026-11-01):
+- ✅ **Master Orchestrator** (`app/agents/orchestrator.py`), ciclo a cada 5 min pelo Celery Beat: recupera jobs travados em IN_PROGRESS há mais de 30 min (volta à fila, ou FAILED após 3 tentativas); retenta falhas transitórias com backoff exponencial (10, 20, 40 min); **nunca** retenta bloqueios (`blocked`), recusas do gate nem fontes não ACTIVE; pede ao Coverage Monitor novos jobs dentro do orçamento restante de cada fonte; despacha os jobs vencidos por prioridade.
+- ✅ Tasks Celery finas (`app/tasks/agents.py`) em filas separadas: `default` (orquestrador), `collect` (Collector), `process` (validação + deduplicação após coleta com dados novos). Locks consultivos do Postgres evitam dois ciclos do orquestrador ou dois processamentos da mesma fonte ao mesmo tempo (validado ao vivo: a segunda tarefa foi reagendada em 60 s).
+- ✅ **Orçamento diário contado no Postgres** (`crawl_logs`), não no Redis: um reinício do Redis (aconteceu) zerava o contador. Redis fica só com a janela por minuto.
+- ✅ Recuperação sem mexer no banco: `POST /jobs/{id}/retry` (ADMIN), CLI `set-source-status` (revisão humana de fonte bloqueada), CLI `orchestrate`.
+- ✅ Visibilidade: `GET /jobs`, `GET /agents/executions` (ANALYST), `GET /sources` (permissão, orçamento restante hoje), todas as execuções em `agent_executions`, **Flower** em http://localhost:5555 (só localhost, senha em `.env`).
+- ✅ 62 testes (travados, backoff, bloqueio nunca retentado, fonte bloqueada, despacho, orçamento, retry manual, orçamento sobrevivendo ao Redis).
+- Em operação: com o orçamento de hoje esgotado, a expansão automática continua após 00:00 UTC (fronteira atual: Louth, Carlow, Laois...). Para só atualizar o que já existe: `ORCHESTRATOR_EXPANSION=false`.
+
+Escopo original:
 - Consolidar orquestrador (prioridade, jobs travados, retries), `agent_executions`, Flower.
 **Saída:** falhas visíveis e recuperáveis sem intervenção manual no banco.
 
