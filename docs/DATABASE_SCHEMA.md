@@ -3,7 +3,7 @@
 > PostgreSQL 16 + PostGIS 3. Este documento é a **especificação** para a migration inicial (Fase 2).
 > Depois que a migration existir, **a fonte da verdade é o Alembic**; este arquivo é atualizado junto com cada migration.
 >
-> Estado: migration inicial `54aec88d8bff` aplicada (modelos em `backend/app/models/`). A view `region_neighbors` usa uma regra provisória (polígonos que se tocam, ou centróides a até 1,5 km quando falta polígono), a revisar com dados reais na Fase 5.
+> Estado: migrations `54aec88d8bff` (inicial) e `1e8e9dae7156` (candidatos de dedup para transações, issue aberta única) aplicadas (modelos em `backend/app/models/`). A view `region_neighbors` usa uma regra provisória (polígonos que se tocam, ou centróides a até 1,5 km quando falta polígono), a revisar com dados reais na Fase 5.
 
 ## Convenções
 
@@ -134,7 +134,7 @@ source_permissions (
 properties (                                   -- imóvel FÍSICO consolidado
   id PK, public_id uuid UNIQUE NOT NULL DEFAULT gen_random_uuid(),
   country_id FK NOT NULL, city_id FK, region_id FK NULL,
-  property_type text NOT NULL,                 -- APARTMENT, HOUSE, LAND, COMMERCIAL, ...
+  property_type text NOT NULL,                 -- APARTMENT, HOUSE, LAND, COMMERCIAL, DWELLING (casa ou apto, fonte não distingue), ...
   category text NOT NULL,                      -- RESIDENTIAL, COMMERCIAL, LAND, OTHER
   status text NOT NULL DEFAULT 'UNKNOWN',      -- LISTED, NOT_LISTED, UNKNOWN (nunca 'SOLD' por inferência)
   address_display text, address_normalized text, unit_identifier text,   -- nº apto/unidade (veto de dedup)
@@ -208,12 +208,14 @@ property_transactions (                        -- preço EFETIVAMENTE transacion
   UNIQUE (source_id, external_id)
 )
 
-dedup_candidates (
-  id PK, listing_id FK NOT NULL, candidate_property_id FK NOT NULL,
+dedup_candidates (                             -- assunto: UM anúncio OU UMA transação
+  id PK, listing_id FK NULL, transaction_id FK NULL, candidate_property_id FK NOT NULL,
   score numeric(4,3) NOT NULL, signals jsonb NOT NULL, vetoes text[] DEFAULT '{}',
   decision dedup_decision NOT NULL DEFAULT 'PENDING',
   decided_by FK users NULL, decided_at timestamptz, created_at,
-  UNIQUE (listing_id, candidate_property_id)
+  UNIQUE (listing_id, candidate_property_id),
+  UNIQUE (transaction_id, candidate_property_id),
+  CHECK (num_nonnulls(listing_id, transaction_id) = 1)
 )
 ```
 
@@ -269,7 +271,7 @@ data_quality (
   message text NOT NULL, details jsonb,
   detected_at timestamptz NOT NULL, resolved_at timestamptz, resolution text
 )
--- (entity_type, entity_id), parcial WHERE resolved_at IS NULL
+-- (entity_type, entity_id); UNIQUE (entity_type, entity_id, rule_code) WHERE resolved_at IS NULL
 
 agent_executions (
   id PK, agent text NOT NULL, task_id text, job_id FK NULL,

@@ -2,7 +2,7 @@
 
 Plataforma de inteligência imobiliária internacional: coleta de fontes **autorizadas**, padronização, deduplicação de imóveis entre portais, histórico de preços, controle de cobertura geográfica com PostGIS e dashboard com mapas interativos.
 
-> **Status:** Fase 3 concluída — primeira fonte ativa (Property Price Register, Dublin). Ver [docs/ROADMAP.md](docs/ROADMAP.md).
+> **Status:** Fase 4 concluída para transações — 255 mil vendas de Dublin validadas e deduplicadas em 223 mil imóveis (precisão medida 99,5%). Ver [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Documentação
 
@@ -59,6 +59,8 @@ docker compose exec api python -m app.cli create-user --email voce@exemplo.com -
 | Cadastrar cidade/região | `docker compose exec api python -m app.cli add-city --iso2 IE --country-name Ireland --currency EUR --city Dublin --admin1 "County Dublin" --region-name "County Dublin" --lat 53.3498 --lon -6.2603 --source-location ie_ppr=Dublin` |
 | Registrar / aprovar fonte | `... app.cli register-source ie_ppr` · `... app.cli approve-permission ie_ppr --note "..." [--reviewer admin@...]` |
 | Coletar | `docker compose exec api python -m app.cli collect --source ie_ppr --region-id 1` |
+| Validar / deduplicar | `... app.cli validate --source ie_ppr` · `... app.cli dedup --source ie_ppr` |
+| Medir precisão do dedup | `docker compose exec api python -m app.cli dedup-eval --source ie_ppr` |
 | Restaurar backup | `docker compose run --rm --entrypoint sh backup /scripts/restore.sh /backups/<arquivo>.dump [banco]` |
 
 Backups diários ficam em `./backups/` (fora do git).

@@ -206,11 +206,23 @@ class PropertyTransaction(Base):
 
 
 class DedupCandidate(Base):
+    """A possible match for human review: one listing OR one transaction vs a property."""
+
     __tablename__ = "dedup_candidates"
-    __table_args__ = (UniqueConstraint("listing_id", "candidate_property_id"),)
+    __table_args__ = (
+        UniqueConstraint("listing_id", "candidate_property_id"),
+        Index(
+            "uq_dedup_candidates_transaction_property",
+            "transaction_id",
+            "candidate_property_id",
+            unique=True,
+        ),
+        CheckConstraint("num_nonnulls(listing_id, transaction_id) = 1", name="one_subject"),
+    )
 
     id: Mapped[int] = pk()
-    listing_id: Mapped[int] = mapped_column(ForeignKey("property_listings.id"))
+    listing_id: Mapped[int | None] = mapped_column(ForeignKey("property_listings.id"))
+    transaction_id: Mapped[int | None] = mapped_column(ForeignKey("property_transactions.id"))
     candidate_property_id: Mapped[int] = mapped_column(ForeignKey("properties.id"), index=True)
     score: Mapped[Decimal] = mapped_column(Confidence)
     signals: Mapped[dict] = mapped_column(JSONB)

@@ -69,4 +69,5 @@
 - **Atribuição obrigatória no dashboard:** "Source: Residential Property Price Register, Property Services Regulatory Authority (PSRA). © PSRA."
 - Avisos que a interface deve respeitar: não é índice de preços; preços com `is_full_market_price = false` não são valor de mercado; `vat_exclusive = true` indica preço sem IVA; sem área nem número de cômodos (a faixa "Property Size Description" fica só no `raw_payload`).
 - Formato: CSV cp1252, 9 colunas; linhas idênticas são legítimas (unidades vendidas juntas) e recebem `external_id` distinto (hash da linha + nº da ocorrência).
+- Qualidade observada: 179 Eircodes compartilhados por endereços com números diferentes (placeholders como "A123456" ou erros de digitação) — ignorados na deduplicação e marcados `EIRCODE_SHARED`.
 - Primeira coleta (2026-11-01): 255.242 vendas (2010-01-01 a 2026-10-23), conferidas contra contagem independente do arquivo.

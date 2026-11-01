@@ -52,10 +52,9 @@ Regra geral: **código convencional para operações determinísticas; IA apenas
 - Atribui `confidence` e `validation_status`.
 
 ### 07 — Deduplication
-- Exata → blocking espacial → score → vetos → decisão. Detalhes em [ARCHITECTURE.md](ARCHITECTURE.md) e ROADMAP Fase 4.
-- Limiares iniciais: ≥ 0,90 vincula; 0,65–0,90 revisão humana; < 0,65 novo imóvel.
-- Vetos rígidos: unidade diferente, área ±10%, quartos diferentes, tipo diferente.
-- Vínculo reversível; anúncios nunca apagados.
+- **Transações (implementado, `dedup-txn-1`):** Eircode confiável → endereço normalizado idêntico → fuzzy (token_sort ≥ 95) só se as diferenças forem de digitação; palavra extra de um lado com score ≥ 85 → revisão. Vetos: números (rotulados) diferentes, distrito diferente, sem número, Eircodes diferentes, mesma data de venda. Eircode compartilhado por endereços com números diferentes é ignorado (placeholder). Precisão medida 99,50% contra Eircode.
+- **Anúncios (quando houver fonte):** exata → blocking espacial → score → vetos (unidade, área ±10%, quartos, tipo) → decisão.
+- Vínculo reversível (`property_id`); nada é apagado; ligações fuzzy ficam registradas como `AUTO_LINKED` em `dedup_candidates`.
 
 ### 08 — Market Analyst
 - SQL/views materializadas: preço médio, preço/m² (por base de área), área média, médias de quartos/banheiros, distribuição de vagas, tipologia, comparativos bairro/cidade, séries históricas.

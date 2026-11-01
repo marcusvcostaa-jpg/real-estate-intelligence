@@ -64,7 +64,19 @@ Escopo original:
 - Skill de projeto `add-source-connector` (`.claude/skills/`), escrita a partir do primeiro conector real.
 **Saída:** dados reais no banco com proveniência completa; testes de contrato com fixtures.
 
-### Fase 4 — Tratamento dos dados (1–2 semanas)
+### Fase 4 — Tratamento dos dados (1–2 semanas) ✅ (para transações)
+
+Entregue (2026-11-01), sobre as 255.242 vendas reais de Dublin:
+- ✅ Normalização determinística de endereço irlandês e Eircode (`app/validators/address.py`): distrito postal, abreviações, acentos, números rotulados (`apt:4`, `block:2`).
+- ✅ Validação (`app/validators/transactions.py` → `data_quality`, re-executável): 397 `PRICE_VERY_LOW`, 208 `PRICE_VERY_HIGH`, 486 `EIRCODE_SHARED` (179 Eircodes de preenchimento/erro, ex. "A123456"). Nada é alterado nos valores publicados.
+- ✅ Deduplicação (`app/agents/deduplication.py` + `app/services/dedup.py`): Eircode confiável → endereço normalizado idêntico → fuzzy só para diferenças de digitação. Vetos: números diferentes, distrito diferente (por cluster, sem "ponte" transitiva), sem número (só Eircode liga), Eircodes diferentes, **duas vendas na mesma data** (unidades vendidas em lote). Palavra extra de um lado → revisão; palavras trocadas ("Walk"/"Way") → imóveis diferentes.
+- ✅ **Precisão medida contra o Eircode como gabarito** (Eircode escondido do algoritmo, 84.619 vendas): **precisão 99,50%**, recall 87,0% (`app.cli dedup-eval`). Iterações: 95,5% (fuzzy simples) → 99,45% (vetos) → 99,50% (Eircodes falsos ignorados).
+- ✅ Resultado: 223.248 imóveis; 28.902 com 2–5 vendas (histórico de preços transacionados por imóvel); 4.391 ligações fuzzy auditáveis (`AUTO_LINKED`); 2.798 pares pendentes de revisão humana. Re-execução idêntica (determinística, sem duplicar nada).
+- ✅ 48 testes (casos sintéticos modelados nos padrões reais: apartamentos vizinhos, bloco/apto, tipo de rua, distritos, Eircode falso, lote na mesma data).
+- ⏳ Histórico de **anúncios** (`property_history`: mudança de preço, NOT_SEEN/REMOVED) e dedup de anúncios por coordenadas/área/quartos: **aguardam uma fonte de anúncios** — não implementados sem dados reais para validar.
+- ⏳ Interface para revisar a fila `dedup_candidates` (Fase 7; decisões ADMIN via API).
+
+Escopo original:
 - Normalização e validação (`data_quality`, confiança).
 - Dedup: exata → blocking (ST_DWithin 150 m / CEP) → score (rapidfuzz, distância, área, quartos…) → vetos → decisão; fila de revisão.
 - Histórico de preços e ciclo NOT_SEEN/REMOVED.

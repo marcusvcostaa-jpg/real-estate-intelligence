@@ -33,6 +33,15 @@ class DataQualityIssue(Base):
             "rule_code",
             postgresql_where=text("resolved_at IS NULL"),
         ),
+        # One open issue per entity and rule, so validators can re-run safely.
+        Index(
+            "uq_data_quality_open_issue",
+            "entity_type",
+            "entity_id",
+            "rule_code",
+            unique=True,
+            postgresql_where=text("resolved_at IS NULL"),
+        ),
     )
 
     id: Mapped[int] = pk()

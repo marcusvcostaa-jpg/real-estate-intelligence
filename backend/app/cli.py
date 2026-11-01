@@ -19,11 +19,14 @@ from datetime import UTC, datetime
 from geoalchemy2.elements import WKTElement
 from sqlalchemy import select
 
+from app.agents.deduplication import evaluate_against_eircode
 from app.core.security import hash_password
 from app.database.session import SessionLocal
 from app.models import City, Country, Region, Source, SourcePermission, User
 from app.models.enums import PermissionStatus, RegionLevel, SourceStatus, UserRole
 from app.services.collector import create_job, run_job
+from app.services.dedup import apply_dedup, load_txns
+from app.validators.transactions import validate_transactions
 
 
 def create_user(email: str, role: UserRole) -> None:
@@ -136,6 +139,36 @@ def collect(code: str, region_id: int) -> None:
         )
 
 
+def _source_id(db, code: str) -> int:
+    source = db.scalar(select(Source).where(Source.code == code))
+    if source is None:
+        sys.exit(f"Source {code} not found.")
+    return source.id
+
+
+def validate(code: str) -> None:
+    with SessionLocal() as db:
+        print(validate_transactions(db, _source_id(db, code)))
+
+
+def dedup(code: str) -> None:
+    with SessionLocal() as db:
+        for key, value in sorted(apply_dedup(db, _source_id(db, code)).items()):
+            print(f"{key}: {value}")
+
+
+def dedup_eval(code: str, thresholds: list[float]) -> None:
+    with SessionLocal() as db:
+        txns = load_txns(db, _source_id(db, code))
+    for threshold in thresholds:
+        m = evaluate_against_eircode(txns, auto_link=threshold)
+        print(
+            f"auto_link>={threshold:g}: precision={m['precision']:.4f} recall={m['recall']:.4f} "
+            f"true_pairs={m['true_pairs']} predicted_pairs={m['predicted_pairs']} "
+            f"review_pairs={m['review_pairs']} (n={m['transactions']})"
+        )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="app.cli")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -165,6 +198,12 @@ def main() -> None:
     p.add_argument("--source", required=True)
     p.add_argument("--region-id", type=int, required=True)
 
+    for name in ("validate", "dedup"):
+        sub.add_parser(name).add_argument("--source", required=True)
+    p = sub.add_parser("dedup-eval")
+    p.add_argument("--source", required=True)
+    p.add_argument("--thresholds", type=float, nargs="+", default=[90, 95, 98, 101])
+
     args = parser.parse_args()
     match args.command:
         case "create-user":
@@ -177,6 +216,12 @@ def main() -> None:
             approve_permission(args.code, args.note, args.reviewer)
         case "collect":
             collect(args.source, args.region_id)
+        case "validate":
+            validate(args.source)
+        case "dedup":
+            dedup(args.source)
+        case "dedup-eval":
+            dedup_eval(args.source, args.thresholds)
 
 
 if __name__ == "__main__":

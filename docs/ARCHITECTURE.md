@@ -149,4 +149,5 @@ Cada conector tem testes de contrato com fixtures gravadas (respostas reais anon
 | 1 — Arquitetura | ✅ documentação e estrutura |
 | 2 — Fundação | ✅ validada localmente e no CI |
 | 3 — Primeira fonte | ✅ `ie_ppr` ativa (Dublin) |
-| 4–8 | Pendente — ver [ROADMAP.md](ROADMAP.md) |
+| 4 — Tratamento | ✅ transações (validação + dedup, precisão 99,5%); anúncios aguardam fonte |
+| 5–8 | Pendente — ver [ROADMAP.md](ROADMAP.md) |
