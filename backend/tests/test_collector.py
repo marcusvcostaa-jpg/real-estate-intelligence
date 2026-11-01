@@ -151,6 +151,9 @@ def test_rate_limit_requeues_job(db, redis_client):
     assert second.status == JobStatus.QUEUED
     assert second.scheduled_for is not None
     assert calls == []
+    # The refused attempt did not consume the daily budget.
+    day_keys = list(redis_client.scan_iter("rl:ie_ppr:d:*"))
+    assert [int(redis_client.get(k)) for k in day_keys] == [1]
 
 
 def test_only_one_active_job_per_search(db):

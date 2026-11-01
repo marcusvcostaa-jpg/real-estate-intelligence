@@ -30,11 +30,19 @@ class Txn:
     eircode: str | None
     sale_date: date
     norm: NormalizedAddress
+    region_id: int | None = None  # county; a property never spans two
 
     @classmethod
-    def build(cls, id: int, address: str | None, eircode: str | None, sale_date: date) -> "Txn":
+    def build(
+        cls,
+        id: int,
+        address: str | None,
+        eircode: str | None,
+        sale_date: date,
+        region_id: int | None = None,
+    ) -> "Txn":
         return cls(id, address or "", normalize_eircode(eircode), sale_date,
-                   normalize_address(address or ""))  # fmt: skip
+                   normalize_address(address or ""), region_id)  # fmt: skip
 
 
 def _digits(norm: NormalizedAddress) -> tuple[str, ...]:
@@ -114,7 +122,7 @@ def token_diff(a: NormalizedAddress, b: NormalizedAddress) -> str:
 
 
 class _Clusters:
-    """Union-find that refuses unions mixing Eircodes, districts or sale dates.
+    """Union-find that refuses unions mixing Eircodes, counties, districts or sale dates.
 
     Checked per cluster, not per pair, so an address without district cannot bridge two
     addresses in different districts."""
@@ -123,6 +131,7 @@ class _Clusters:
         self.parent = {t.id: t.id for t in txns}
         self.eircodes = {t.id: {t.eircode} - {None} for t in txns}
         self.districts = {t.id: {t.norm.district} - {None} for t in txns}
+        self.regions = {t.id: {t.region_id} - {None} for t in txns}
         self.dates = {t.id: {t.sale_date} for t in txns}
 
     def find(self, x: int) -> int:
@@ -137,6 +146,8 @@ class _Clusters:
             return None
         if self.eircodes[ra] and self.eircodes[rb] and self.eircodes[ra] != self.eircodes[rb]:
             return "EIRCODE_DIFFERS"
+        if self.regions[ra] and self.regions[rb] and self.regions[ra] != self.regions[rb]:
+            return "REGION_DIFFERS"
         if self.districts[ra] and self.districts[rb] and self.districts[ra] != self.districts[rb]:
             return "DISTRICT_DIFFERS"
         if self.dates[ra] & self.dates[rb]:
@@ -153,6 +164,7 @@ class _Clusters:
             self.parent[rb] = ra
             self.eircodes[ra] |= self.eircodes.pop(rb)
             self.districts[ra] |= self.districts.pop(rb)
+            self.regions[ra] |= self.regions.pop(rb)
             self.dates[ra] |= self.dates.pop(rb)
         return None
 

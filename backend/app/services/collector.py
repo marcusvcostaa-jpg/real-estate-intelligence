@@ -91,10 +91,15 @@ def take_request_slot(r: redis.Redis, source: Source) -> None:
     pipe.incr(day_key)
     pipe.expire(day_key, 2 * 86400)
     per_minute, _, per_day, _ = pipe.execute()
+    retry_at = None
     if source.daily_request_budget and per_day > source.daily_request_budget:
-        raise RateLimited((now + timedelta(days=1)).replace(hour=0, minute=0, second=0))
-    if per_minute > source.rate_limit_per_minute:
-        raise RateLimited(now.replace(second=0, microsecond=0) + timedelta(minutes=1))
+        retry_at = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    elif per_minute > source.rate_limit_per_minute:
+        retry_at = now.replace(second=0, microsecond=0) + timedelta(minutes=1)
+    if retry_at:
+        # A refused attempt makes no request, so it must not consume the budget.
+        r.pipeline().decr(minute_key).decr(day_key).execute()
+        raise RateLimited(retry_at)
 
 
 def create_job(

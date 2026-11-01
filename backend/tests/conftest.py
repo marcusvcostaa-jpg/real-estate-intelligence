@@ -5,6 +5,7 @@ Locally: docker compose exec api pytest   (uses the rei_test database created on
 
 import os
 import re
+import tempfile
 
 os.environ.setdefault(
     "TEST_DATABASE_URL", "postgresql+psycopg://rei:change-me@localhost:5432/rei_test"
@@ -12,6 +13,8 @@ os.environ.setdefault(
 os.environ["DATABASE_URL"] = os.environ["TEST_DATABASE_URL"]
 os.environ.setdefault("JWT_SECRET", "test-secret-" + "x" * 40)
 os.environ["RATE_LIMIT_STORAGE"] = "memory://"
+# Synthetic downloads must never land in the real source cache.
+os.environ["CACHE_DIR"] = tempfile.mkdtemp(prefix="rei-test-cache-")
 # Redis DB 15 for tests, so source rate-limit counters of the dev stack are never touched.
 os.environ["REDIS_URL"] = re.sub(
     r"(/\d+)?$", "/15", os.environ.get("REDIS_URL", "redis://localhost:6379/0"), count=1

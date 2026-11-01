@@ -2,7 +2,7 @@
 
 Plataforma de inteligência imobiliária internacional: coleta de fontes **autorizadas**, padronização, deduplicação de imóveis entre portais, histórico de preços, controle de cobertura geográfica com PostGIS e dashboard com mapas interativos.
 
-> **Status:** Fase 4 concluída para transações — 255 mil vendas de Dublin validadas e deduplicadas em 223 mil imóveis (precisão medida 99,5%). Ver [docs/ROADMAP.md](docs/ROADMAP.md).
+> **Status:** Fase 5 concluída — limites oficiais da Irlanda, expansão automática de Dublin para Meath, Kildare e Wicklow (361 mil vendas, 320 mil imóveis) e mapa de cobertura em `/map`. Ver [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Documentação
 
@@ -56,6 +56,8 @@ docker compose exec api python -m app.cli create-user --email voce@exemplo.com -
 | Nova migration | `docker compose exec api alembic revision --autogenerate -m "descricao"` |
 | Aplicar migrations | `docker compose exec api alembic upgrade head` |
 | Lint/build frontend | `cd frontend && npm run lint && npm run build` |
+| Importar limites oficiais | `docker compose exec api python -m app.cli import-boundaries --source-location ie_ppr --subdivide Dublin` |
+| Expandir cobertura | `docker compose exec api python -m app.cli expand --source ie_ppr --max 3 --run` |
 | Cadastrar cidade/região | `docker compose exec api python -m app.cli add-city --iso2 IE --country-name Ireland --currency EUR --city Dublin --admin1 "County Dublin" --region-name "County Dublin" --lat 53.3498 --lon -6.2603 --source-location ie_ppr=Dublin` |
 | Registrar / aprovar fonte | `... app.cli register-source ie_ppr` · `... app.cli approve-permission ie_ppr --note "..." [--reviewer admin@...]` |
 | Coletar | `docker compose exec api python -m app.cli collect --source ie_ppr --region-id 1` |
@@ -64,5 +66,7 @@ docker compose exec api python -m app.cli create-user --email voce@exemplo.com -
 | Restaurar backup | `docker compose run --rm --entrypoint sh backup /scripts/restore.sh /backups/<arquivo>.dump [banco]` |
 
 Backups diários ficam em `./backups/` (fora do git).
+
+> **Hot reload no Windows:** o `next dev` dentro do container não detecta mudanças pelo bind mount (Turbopack). Para desenvolver o frontend, rode `npm run dev` no host (com `API_INTERNAL_URL=http://localhost:8000/api/v1`) ou `docker compose restart frontend` após editar.
 
 > **Git Bash no Windows:** prefixe comandos que passam caminhos para dentro do container com `MSYS_NO_PATHCONV=1` (ex.: o restore), senão `/scripts/...` vira um caminho do Windows. PowerShell não precisa disso.

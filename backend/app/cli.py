@@ -14,17 +14,23 @@ import getpass
 import importlib
 import os
 import sys
+import time
 from datetime import UTC, datetime
 
+import httpx
 from geoalchemy2.elements import WKTElement
 from sqlalchemy import select
 
+from app.agents.coverage_monitor import plan_jobs
 from app.agents.deduplication import evaluate_against_eircode
+from app.core.config import get_settings
 from app.core.security import hash_password
 from app.database.session import SessionLocal
+from app.geographic.boundaries import import_counties, refresh_neighbors, subdivide_county
 from app.models import City, Country, Region, Source, SourcePermission, User
-from app.models.enums import PermissionStatus, RegionLevel, SourceStatus, UserRole
+from app.models.enums import JobStatus, PermissionStatus, RegionLevel, SourceStatus, UserRole
 from app.services.collector import create_job, run_job
+from app.services.coverage import refresh_region_status
 from app.services.dedup import apply_dedup, load_txns
 from app.validators.transactions import validate_transactions
 
@@ -169,6 +175,45 @@ def dedup_eval(code: str, thresholds: list[float]) -> None:
         )
 
 
+def import_boundaries(source_location: str | None, subdivide: list[str]) -> None:
+    headers = {"User-Agent": get_settings().scraper_user_agent}
+    with SessionLocal() as db, httpx.Client(headers=headers, timeout=120) as client:
+        print(import_counties(db, client, source_location))
+        for county in subdivide:
+            print(county, subdivide_county(db, client, county))
+        refresh_neighbors(db)
+        for region_id in db.scalars(select(Region.id).where(Region.parent_id.is_(None))):
+            refresh_region_status(db, region_id)
+        db.commit()
+
+
+def expand(code: str, max_jobs: int, run: bool) -> None:
+    with SessionLocal() as db:
+        source = db.scalar(select(Source).where(Source.code == code))
+        if source is None:
+            sys.exit(f"Source {code} not found.")
+        jobs = plan_jobs(db, source, max_jobs)
+        for job in jobs:
+            region = db.get(Region, job.region_id)
+            print(f"planned job={job.id} {job.triggered_by} region={region.name}")
+            if run:
+                job = run_job(db, job.id)
+                # Rate limit hit: wait for the allowed slot (bounded) instead of skipping.
+                while job.status == JobStatus.QUEUED and job.scheduled_for:
+                    wait = (job.scheduled_for - datetime.now(UTC)).total_seconds()
+                    if wait > 180:
+                        break
+                    print(f"  rate limited, waiting {max(wait, 0):.0f}s")
+                    time.sleep(max(wait, 0) + 1)
+                    job = run_job(db, job.id)
+                print(
+                    f"  -> {job.status} records={job.listings_found} new={job.new_listings} "
+                    f"error={job.last_error}"
+                )
+        if not jobs:
+            print("nothing to do: no due refresh and no unsearched neighbour of a completed area")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="app.cli")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -204,6 +249,15 @@ def main() -> None:
     p.add_argument("--source", required=True)
     p.add_argument("--thresholds", type=float, nargs="+", default=[90, 95, 98, 101])
 
+    p = sub.add_parser("import-boundaries")
+    p.add_argument("--source-location", help="source code whose county names match (e.g. ie_ppr)")
+    p.add_argument("--subdivide", action="append", default=[], metavar="COUNTY")
+
+    p = sub.add_parser("expand")
+    p.add_argument("--source", required=True)
+    p.add_argument("--max", type=int, default=3)
+    p.add_argument("--run", action="store_true")
+
     args = parser.parse_args()
     match args.command:
         case "create-user":
@@ -222,6 +276,10 @@ def main() -> None:
             dedup(args.source)
         case "dedup-eval":
             dedup_eval(args.source, args.thresholds)
+        case "import-boundaries":
+            import_boundaries(args.source_location, args.subdivide)
+        case "expand":
+            expand(args.source, args.max, args.run)
 
 
 if __name__ == "__main__":

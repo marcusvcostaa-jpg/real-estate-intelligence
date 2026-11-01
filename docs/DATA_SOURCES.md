@@ -50,7 +50,7 @@
 | Fonte | Uso | Licença | Observação |
 |---|---|---|---|
 | OpenStreetMap (Overpass API) | Limites administrativos, bairros | ODbL | Share-alike se publicarmos base derivada; uso moderado da instância pública |
-| CSO / Tailte Éireann | Limites oficiais IE | CC-BY 4.0 (verificar) | Preferir ao OSM na Irlanda |
+| **Tailte Éireann** — National Statutory Boundaries 2019, gen. 20 m (condados, áreas administrativas, divisões eleitorais) | Limites oficiais IE | **CC BY 4.0** — atribuição "© Tailte Éireann" (no mapa) | ✅ EM USO (aprovado 2026-11-01). Serviço ArcGIS `services-eu1.arcgis.com/FH5XCsx8rYXqnjF5`; não serve para fins legais/cadastrais |
 | ONS (UK), IBGE (BR) | Limites oficiais | Abertas (verificar) | — |
 | Nominatim público | Geocodificação pontual | ODbL; política de uso | Máx. 1 req/s, sem uso em massa → self-host para volume |
 | OpenFreeMap / Protomaps PMTiles | Tiles do mapa | Gratuito | Sem chave de API |
@@ -60,7 +60,7 @@
 
 | Código | Fonte | Tipo | Dados | Escopo | Permissão | Atualização |
 |---|---|---|---|---|---|---|
-| `ie_ppr` | Residential Property Price Register (PSRA, Irlanda) | OPEN_DATA (ZIP oficial `PPR-ALL.zip`) | Preços **transacionados** → `property_transactions` | Condado de Dublin | APPROVED em 2026-11-01 pelo responsável (chat) | 7 dias; 1 download/execução; máx. 4 req/dia |
+| `ie_ppr` | Residential Property Price Register (PSRA, Irlanda) | OPEN_DATA (ZIP oficial `PPR-ALL.zip`) | Preços **transacionados** → `property_transactions` | Dublin + expansão a condados vizinhos (aprovada 2026-11-01): Meath, Kildare, Wicklow | APPROVED em 2026-11-01 pelo responsável (chat) | 7 dias; 1 download/execução; máx. 4 req/dia |
 
 **`ie_ppr` — evidências e regras de uso** (registradas em `source_permissions`):
 - Política de reutilização da PSRA ([psr.ie](https://www.psr.ie/re-use-of-public-sector-information/), atualizada 2022-07-29): reutilização gratuita em qualquer formato, inclusive publicação, desde que: citar a fonte e o copyright da PSRA; reproduzir com exatidão; não usar de forma enganosa; não usar principalmente para publicidade; não usar para fins ilegais.

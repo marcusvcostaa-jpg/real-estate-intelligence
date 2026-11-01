@@ -154,3 +154,11 @@ def test_placeholder_eircode_does_not_merge_different_addresses():
     assert not same(r, 1, 2)
     assert same(r, 1, 3)  # the address still links the real repeat sale
     assert r.stats["untrusted_eircodes"] == 1
+
+
+def test_same_address_in_two_counties_is_two_properties():
+    a = Txn.build(1, "12 Main Street, Sampletown", None, date(2015, 1, 1), region_id=1)
+    b = Txn.build(2, "12 Main Street, Sampletown", None, date(2020, 1, 1), region_id=2)
+    r = cluster([a, b])
+    assert not same(r, 1, 2)
+    assert r.stats["refused_region_differs"] == 1

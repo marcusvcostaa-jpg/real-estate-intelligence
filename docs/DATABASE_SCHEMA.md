@@ -3,7 +3,7 @@
 > PostgreSQL 16 + PostGIS 3. Este documento é a **especificação** para a migration inicial (Fase 2).
 > Depois que a migration existir, **a fonte da verdade é o Alembic**; este arquivo é atualizado junto com cada migration.
 >
-> Estado: migrations `54aec88d8bff` (inicial) e `1e8e9dae7156` (candidatos de dedup para transações, issue aberta única) aplicadas (modelos em `backend/app/models/`). A view `region_neighbors` usa uma regra provisória (polígonos que se tocam, ou centróides a até 1,5 km quando falta polígono), a revisar com dados reais na Fase 5.
+> Estado: migrations `54aec88d8bff` (inicial), `1e8e9dae7156` (candidatos de dedup para transações, issue aberta única) e `e33a05b08bc5` (vizinhança tolerante) aplicadas (modelos em `backend/app/models/`). A view `region_neighbors` usa uma regra provisória (polígonos que se tocam, ou centróides a até 1,5 km quando falta polígono), a revisar com dados reais na Fase 5.
 
 ## Convenções
 
@@ -95,7 +95,8 @@ regions (
 )
 -- GIST(geom), GIST(centroid), (city_id, level), (parent_id)
 
-MATERIALIZED VIEW region_neighbors (region_id, neighbor_id, relation)   -- 'TOUCHES' via ST_Touches, 'NEAR' via ST_DWithin p/ regiões sem polígono
+MATERIALIZED VIEW region_neighbors (region_id, neighbor_id, relation)   -- mesmo nível/profundidade; polígonos a até 0.001 grau (~100 m, tolera generalização); 'NEAR' p/ regiões sem polígono
+-- Níveis na Irlanda: condado = região raiz DISTRICT (+ registro em cities); área administrativa = DISTRICT filho; divisão eleitoral = LOCALITY
 ```
 
 ### Fontes

@@ -11,6 +11,7 @@ Regra: **não avançar de fase sem cumprir o critério de saída da anterior.** 
 | 2026-10-31 | Runtime de containers: **Docker Desktop** (requer WSL2) | Responsável |
 | 2026-11-01 | Repositório GitHub **privado** `marcusvcostaa-jpg/real-estate-intelligence` | Responsável |
 | 2026-11-01 | Fonte `ie_ppr` (Property Price Register) **aprovada** nas condições de `docs/DATA_SOURCES.md` | Responsável |
+| 2026-11-01 | Limites Tailte Éireann (CC BY 4.0) aprovados; escopo do `ie_ppr` ampliado para expansão aos condados vizinhos | Responsável |
 
 ### Pendentes (bloqueiam a fase indicada)
 
@@ -18,6 +19,7 @@ Regra: **não avançar de fase sem cumprir o critério de saída da anterior.** 
 |---|---|
 | Solicitar acesso a APIs de anúncios (Daft.ie / idealista) — ação do responsável | Primeira fonte de **anúncios** (Fase 4 usa transações enquanto isso) |
 | Provedor de LLM (nenhum / Ollama local / API paga) | Primeira fonte com texto livre |
+| Geocodificação de vendas (Nominatim local / base Eircode paga / casamento por localidade) | Estatísticas abaixo do nível de condado |
 
 ## Fases
 
@@ -82,7 +84,23 @@ Escopo original:
 - Histórico de preços e ciclo NOT_SEEN/REMOVED.
 **Saída:** suíte com casos reais de duplicados e não-duplicados (mesmo prédio); precisão de auto-merge medida.
 
-### Fase 5 — Geografia (~2 semanas)
+### Fase 5 — Geografia (~2 semanas) ✅
+
+Entregue (2026-11-01):
+- ✅ Limites oficiais **Tailte Éireann** (National Statutory Boundaries 2019, generalizados 20 m, CC BY 4.0, aprovados): 26 condados (áreas de pesquisa de topo) + Dublin subdividida em 4 áreas administrativas e 322 divisões eleitorais (`app.cli import-boundaries`).
+- ✅ Vizinhança: `region_neighbors` tolerante à generalização (mesmo nível, até ~100 m; `ST_Touches` perdia Kildare e Meath). Dublin com Kildare, Meath, Wicklow; 58 pares de condados; média 6,3 vizinhas por divisão eleitoral.
+- ✅ Status derivado **com herança**: cobertura de um condado vale para suas sub-regiões (o PPR pesquisa por condado).
+- ✅ **Coverage Monitor** (`app/agents/coverage_monitor.py`, `app.cli expand`): refreshes vencidos primeiro, depois vizinhos não pesquisados de áreas concluídas, mais próximos primeiro, dentro do orçamento.
+- ✅ **Expansão automática real** a partir de Dublin (escopo ampliado aprovado): Meath (33.894 vendas), Kildare (44.496), Wicklow (27.542). Próxima fronteira: Louth, Carlow, Laois, Westmeath, Wexford, Monaghan, Cavan, Offaly. Cache condicional (If-Modified-Since, resposta 304) evita baixar 19 MB por condado.
+- ✅ Deduplicação refeita nos 4 condados com veto por condado: 361.174 vendas viraram 320.037 imóveis; precisão medida 99,40% (114 mil vendas com Eircode).
+- ✅ API: `GET /regions` (GeoJSON), `GET /regions/{id}`, `GET /coverage/summary` (VIEWER).
+- ✅ Mapa MapLibre (`/map`): cor por status ou mediana (transacionado, mercado pleno, com IVA, 12 meses), clique mostra detalhes/cobertura/vizinhos, sub-regiões, atribuições PSRA + Tailte + OpenFreeMap/OSM. Testado no navegador.
+- ✅ 54 testes.
+- Correções no caminho: orçamento consumido por tentativas recusadas (corrigido; contador do dia ajustado de 5 para as 3 requisições reais); view de vizinhança de 3 min para ~50 s.
+- ⏳ Vendas por divisão eleitoral exigem **geocodificação** (o PPR não traz coordenadas) — decisão pendente (Nominatim local / base Eircode paga / casamento por localidade).
+- ⏳ Skill `seed-city`: adiada — a importação ficou genérica por CLI (`import-boundaries`); escrever a skill quando houver um segundo país.
+
+Escopo original:
 - Importar Dublin (limites oficiais/OSM), hierarquia, vizinhança.
 - Cobertura por polígono; status derivado; expansão BFS com orçamento.
 - Mapa MapLibre com status das regiões e clique para detalhes.

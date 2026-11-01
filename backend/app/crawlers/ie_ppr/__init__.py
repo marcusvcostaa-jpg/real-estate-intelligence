@@ -11,9 +11,11 @@ import zipfile
 from collections import Counter
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
 
 import httpx
 
+from app.core.config import get_settings
 from app.crawlers.base import (
     RegionRef,
     SearchPage,
@@ -66,8 +68,9 @@ PERMISSION = {
         "register' lists CC BY 4.0 (publisher PSRA); propertypriceregister.ie/robots.txt "
         "returns 404; PPR-ALL.zip Last-Modified 2026-10-28."
     ),
-    "scope": "Download the official PPR-ALL.zip and store residential sales of the target "
-    "county as transacted prices; display and analyse them with attribution.",
+    "scope": "Download the official PPR-ALL.zip and store residential sales of the counties "
+    "reached by coverage expansion (Dublin first; neighbours approved 2026-11-01) as "
+    "transacted prices; display and analyse them with attribution.",
     "restrictions": (
         "Acknowledge source and PSRA copyright when supplying data to others; reproduce "
         "accurately; do not use in a misleading way (not a price index; '**' prices are not "
@@ -128,18 +131,37 @@ def parse_register(csv_text: str, county: str) -> list[TransactionRecord]:
 
 
 class Connector:
-    def __init__(self, client: httpx.Client) -> None:
-        self.client = client
+    """One national file serves every county: it is cached on disk and re-requested with
+    If-Modified-Since, so searching several counties costs the source a 304, not 19 MB each."""
 
-    def search(self, region: RegionRef, filters: dict, cursor: dict | None) -> SearchPage:
-        if not region.source_location:
-            raise ValueError(f"region {region.id} has no ie_ppr county mapping")
-        response = self.client.get(DOWNLOAD_URL)
+    def __init__(self, client: httpx.Client, cache_dir: Path | None = None) -> None:
+        self.client = client
+        self.cache_dir = (cache_dir or Path(get_settings().cache_dir)) / "ie_ppr"
+
+    def _download(self) -> tuple[bytes, int, str | None]:
+        archive, stamp = self.cache_dir / "PPR-ALL.zip", self.cache_dir / "last-modified"
+        headers = {}
+        if archive.exists() and stamp.exists():
+            headers["If-Modified-Since"] = stamp.read_text()
+        response = self.client.get(DOWNLOAD_URL, headers=headers)
+        if response.status_code == 304:
+            return archive.read_bytes(), 304, stamp.read_text()
         raise_for_block(response)
         if "zip" not in response.headers.get("content-type", ""):
             # An HTML page instead of the ZIP may be a block or maintenance page: stop, don't parse.
             raise SourceBlocked(f"expected ZIP, got {response.headers.get('content-type')!r}")
-        with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
+        last_modified = response.headers.get("last-modified")
+        if last_modified:
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+            archive.write_bytes(response.content)
+            stamp.write_text(last_modified)
+        return response.content, response.status_code, last_modified
+
+    def search(self, region: RegionRef, filters: dict, cursor: dict | None) -> SearchPage:
+        if not region.source_location:
+            raise ValueError(f"region {region.id} has no ie_ppr county mapping")
+        content, status, last_modified = self._download()
+        with zipfile.ZipFile(io.BytesIO(content)) as archive:
             members = [m for m in archive.namelist() if m.lower().endswith(".csv")]
             if len(members) != 1:
                 raise SourceFormatChanged(f"expected one CSV in ZIP, got {members}")
@@ -147,6 +169,6 @@ class Connector:
         return SearchPage(
             items=parse_register(csv_text, region.source_location),
             request_url=DOWNLOAD_URL,
-            http_status=response.status_code,
-            notes={"last_modified": response.headers.get("last-modified")},
+            http_status=status,
+            notes={"last_modified": last_modified},
         )

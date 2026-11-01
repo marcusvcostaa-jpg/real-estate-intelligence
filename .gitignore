@@ -22,8 +22,9 @@ out/
 *.tsbuildinfo
 next-env.d.ts
 
-# Data, dumps, backups (nunca no git)
+# Data, dumps, backups, source caches (nunca no git)
 data/
+.cache/
 backups/
 *.dump
 *.sql.gz

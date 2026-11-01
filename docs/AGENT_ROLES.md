@@ -61,9 +61,9 @@ Regra geral: **código convencional para operações determinísticas; IA apenas
 - **Sempre separa preço anunciado de preço transacionado.**
 
 ### 09 — Coverage Monitor
-- Encontra `search_coverage` vencidas (`next_due_at <= now()`) ou inexistentes → cria jobs.
-- Recalcula status das regiões (regra em [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)).
-- Região COMPLETED → enfileira vizinhos (expansão BFS priorizada).
+- **Implementado** (`app/agents/coverage_monitor.py`, CLI `expand`): primeiro coberturas vencidas (`next_due_at <= now()`), depois áreas de topo vizinhas de áreas COMPLETED nunca pesquisadas pela fonte, mais próximas primeiro, limitado por `--max` (o Collector ainda aplica rate limit e orçamento diário).
+- Status das regiões recalculado com herança (cobertura do pai vale para os filhos) — `app/services/coverage.py`.
+- Agendamento automático (Celery Beat) entra na Fase 6.
 
 ## 2. Subagentes de desenvolvimento (Claude Code)
 

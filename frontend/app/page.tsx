@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { logout } from "@/app/actions/auth";
 import { getCurrentUser, getHealth } from "@/services/api";
@@ -7,7 +8,8 @@ export default function Home() {
     <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">
       <h1 className="text-xl font-semibold tracking-tight">Real Estate Intelligence</h1>
       <p className="mt-1 text-sm text-zinc-500">
-        Fase 2 — fundação. O dashboard com dados reais chega nas próximas fases.
+        O dashboard completo chega na Fase 7.{" "}
+        <Link href="/map" className="underline">Abrir o mapa de cobertura</Link>
       </p>
       <Suspense fallback={<p className="mt-6 text-sm text-zinc-500">Carregando…</p>}>
         <SessionPanel />

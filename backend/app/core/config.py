@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     scraper_user_agent: str = "RealEstateIntelligenceBot/0.1"
+    cache_dir: str = ".cache"  # downloaded source files (backend/.cache in the dev container)
 
     @property
     def cors_origin_list(self) -> list[str]:

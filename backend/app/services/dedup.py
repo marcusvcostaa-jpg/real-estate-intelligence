@@ -28,6 +28,7 @@ def load_txns(db: Session, source_id: int) -> list[Txn]:
             PropertyTransaction.address_original,
             PropertyTransaction.postal_code,
             PropertyTransaction.transaction_date,
+            PropertyTransaction.region_id,
         )
         .where(PropertyTransaction.source_id == source_id)
         .order_by(PropertyTransaction.id)  # deterministic clusters and review pairs
