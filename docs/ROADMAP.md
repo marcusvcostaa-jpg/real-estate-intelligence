@@ -122,7 +122,18 @@ Escopo original:
 - Consolidar orquestrador (prioridade, jobs travados, retries), `agent_executions`, Flower.
 **Saída:** falhas visíveis e recuperáveis sem intervenção manual no banco.
 
-### Fase 7 — Dashboard (~2 semanas)
+### Fase 7 — Dashboard (~2 semanas) ✅
+
+Entregue (2026-11-01), sobre dados reais (4 condados, 361 mil vendas, 320 mil imóveis):
+- ✅ **Início**: indicadores (imóveis, vendas, anúncios, áreas e regiões pesquisadas/pendentes/em processamento, imóveis novos no sistema, fontes, última atualização, revisões pendentes, saúde) com atribuições obrigatórias.
+- ✅ **Análises**: comparação entre áreas (barras + tabela: vendas, mediana e média de 12 meses, variação anual, % novos, revendidos), histórico de preços (mediana mensal, 10 anos, até 4 áreas, meses recentes marcados como provisórios), distribuição por faixa de preço; painel explícito de análises **indisponíveis** (preço/m², área, quartos, banheiros, garagem — a fonte não informa; nada estimado).
+- ✅ **Imóveis**: busca com filtros (área, preço, datas, novo/usado, valor de mercado pleno, revendidos, endereço) sobre a última venda; paginação por cursor; detalhe com histórico de vendas (eixo temporal real).
+- ✅ **Revisão**: fila de possíveis duplicados com motivo e vetos; ADMIN decide "mesmo imóvel" (move a venda; nenhuma venda apagada) ou "diferentes"; decisões respeitadas pelas deduplicações seguintes.
+- ✅ Gráficos SVG próprios seguindo o guia de visualização: paleta validada em ordem fixa (cor segue a área), um eixo, linhas de 2 px, tooltip, legenda + rótulos diretos, tabela acessível, modo escuro.
+- ✅ Desempenho: view materializada `property_sales_summary` (refresh ~2,4 s após cada dedup); busca de imóveis < 10 ms, áreas ~360 ms, série de 10 anos ~130 ms.
+- ✅ 66 testes; validado no navegador.
+- Mapa (Fase 5) integrado à navegação.
+- ⏳ Indicadores de anúncios (preço anunciado, área, quartos, garagem) dependem de uma fonte autorizada de anúncios.
 - KPIs, mapa de calor/concentração, preços médios por região, análises, filtros, comparativos, histórico.
 **Saída:** todas as métricas da especificação, sobre dados reais.
 

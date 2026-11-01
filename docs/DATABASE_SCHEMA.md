@@ -3,7 +3,7 @@
 > PostgreSQL 16 + PostGIS 3. Este documento é a **especificação** para a migration inicial (Fase 2).
 > Depois que a migration existir, **a fonte da verdade é o Alembic**; este arquivo é atualizado junto com cada migration.
 >
-> Estado: migrations `54aec88d8bff` (inicial), `1e8e9dae7156` (candidatos de dedup para transações, issue aberta única) e `e33a05b08bc5` (vizinhança tolerante) aplicadas (modelos em `backend/app/models/`). A view `region_neighbors` usa uma regra provisória (polígonos que se tocam, ou centróides a até 1,5 km quando falta polígono), a revisar com dados reais na Fase 5.
+> Estado: migrations `54aec88d8bff` (inicial), `1e8e9dae7156` (candidatos de dedup para transações, issue aberta única) `e33a05b08bc5` (vizinhança tolerante) e `f5c5a72e597a` (resumo de vendas por imóvel) aplicadas (modelos em `backend/app/models/`). A view `region_neighbors` usa uma regra provisória (polígonos que se tocam, ou centróides a até 1,5 km quando falta polígono), a revisar com dados reais na Fase 5.
 
 ## Convenções
 
@@ -94,6 +94,10 @@ regions (
   created_at, updated_at
 )
 -- GIST(geom), GIST(centroid), (city_id, level), (parent_id)
+
+MATERIALIZED VIEW property_sales_summary (property_id, public_id, region_id, address_display, postal_code, sales, first_sale_date, last_sale_date, last_sale_price, currency, last_full_market, last_vat_exclusive, last_is_new, last_source_id)
+-- derivada; refresh CONCURRENTLY após cada deduplicação; índices (region_id, last_sale_date DESC, property_id DESC) e (last_sale_date DESC, property_id DESC)
+-- property_transactions: índice (region_id, transaction_date) para séries temporais
 
 MATERIALIZED VIEW region_neighbors (region_id, neighbor_id, relation)   -- mesmo nível/profundidade; polígonos a até 0.001 grau (~100 m, tolera generalização); 'NEAR' p/ regiões sem polígono
 -- Níveis na Irlanda: condado = região raiz DISTRICT (+ registro em cities); área administrativa = DISTRICT filho; divisão eleitoral = LOCALITY

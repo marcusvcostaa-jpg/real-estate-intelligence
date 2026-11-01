@@ -34,6 +34,8 @@
 | 16 | Worker do MapLibre servido por route handler (`/vendor/maplibre-worker`) | O bundler não serve o worker ESM da maplibre v6 | Bundler passar a servir o worker |
 | 17 | Orçamento diário por fonte contado em `crawl_logs` (Postgres); Redis só na janela por minuto | Redis é descartável: um reinício zerou o contador | — |
 | 18 | Exclusão mútua por locks consultivos do Postgres em conexão dedicada | Sem tabela de locks; sobrevive aos commits do trabalho protegido | Vários bancos/instâncias |
+| 19 | View materializada `property_sales_summary` para a busca de imóveis | Filtrar/ordenar 320k imóveis pela última venda sem subconsulta por linha | Atualização incremental se o refresh (~2 s) crescer |
+| 20 | Gráficos em SVG próprio (sem biblioteca) seguindo o guia de visualização | 2 componentes pequenos cobrem linhas e barras; zero dependência | Tipos de gráfico novos (mapa de calor, dispersão) |
 
 ## 3. Componentes
 
@@ -158,4 +160,5 @@ Cada conector tem testes de contrato com fixtures gravadas (respostas reais anon
 | 4 — Tratamento | ✅ transações (validação + dedup, precisão 99,5%); anúncios aguardam fonte |
 | 5 — Geografia | ✅ limites oficiais, herança, expansão real (4 condados), mapa |
 | 6 — Agentes | ✅ orquestrador automático, filas, recuperação, Flower |
-| 7–8 | Pendente — ver [ROADMAP.md](ROADMAP.md) |
+| 7 — Dashboard | ✅ indicadores, análises, busca, histórico, revisão |
+| 8 | Contínuo — ver [ROADMAP.md](ROADMAP.md) |

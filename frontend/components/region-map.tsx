@@ -11,6 +11,7 @@ import {
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
+import { BASIS_PT } from "@/components/format";
 import type { RegionCollection, RegionDetail, RegionStatus } from "@/types/api";
 
 setWorkerUrl("/vendor/maplibre-worker"); // see app/vendor/maplibre-worker/route.ts
@@ -180,7 +181,7 @@ export function RegionMap({ initial, attributions }: { initial: RegionCollection
                   </li>
                 ))}
               </ul>
-              <p className="mt-2 max-w-48 text-zinc-500">{initial.median_basis}</p>
+              <p className="mt-2 max-w-48 text-zinc-500">{BASIS_PT}, últimos 12 meses</p>
             </div>
           )}
           {childrenOf && (
@@ -214,7 +215,7 @@ export function RegionMap({ initial, attributions }: { initial: RegionCollection
               <dt className="text-zinc-500">Última pesquisa</dt>
               <dd>{day(detail.last_searched_at)}</dd>
             </dl>
-            <p className="text-xs text-zinc-500">* {detail.median_basis}.</p>
+            <p className="text-xs text-zinc-500">* {BASIS_PT}, últimos 12 meses.</p>
             {detail.sales == null && detail.parent_id != null && (
               <p className="text-xs text-zinc-500">
                 Vendas ainda não são localizadas neste nível: o registro de preços não traz coordenadas.

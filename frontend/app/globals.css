@@ -3,6 +3,17 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Data-viz tokens: reference palette from the dataviz guide (validated, CVD-safe order).
+     Marks use --series-*; text always uses --viz-text-* (never the series color). */
+  --viz-surface: #fcfcfb;
+  --viz-grid: #e7e6e2;
+  --viz-text-primary: #0b0b0b;
+  --viz-text-secondary: #52514e;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
 }
 
 @theme inline {
@@ -16,6 +27,15 @@
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+
+    --viz-surface: #1a1a19;
+    --viz-grid: #383835;
+    --viz-text-primary: #f0efec;
+    --viz-text-secondary: #c3c2b7;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
   }
 }
 

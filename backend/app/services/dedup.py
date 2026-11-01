@@ -17,6 +17,7 @@ from app.models import (
     Source,
 )
 from app.models.enums import DedupDecision, ValidationStatus
+from app.services.summary import refresh_property_summary
 
 _BATCH = 2000
 
@@ -165,4 +166,5 @@ def apply_dedup(db: Session, source_id: int) -> dict:
         )
     )
     db.commit()
+    refresh_property_summary(db)
     return stats

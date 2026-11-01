@@ -2,7 +2,7 @@
 
 Plataforma de inteligência imobiliária internacional: coleta de fontes **autorizadas**, padronização, deduplicação de imóveis entre portais, histórico de preços, controle de cobertura geográfica com PostGIS e dashboard com mapas interativos.
 
-> **Status:** Fase 6 concluída — orquestrador automático (Celery Beat) coleta, valida, deduplica e expande a cobertura sozinho, dentro do orçamento de cada fonte; 4 condados irlandeses cobertos, mapa em `/map`, monitor em `:5555`. Ver [docs/ROADMAP.md](docs/ROADMAP.md).
+> **Status:** Fase 7 concluída — dashboard com indicadores, análises de mercado, busca de imóveis com histórico, mapa e revisão de duplicados (http://localhost:3000), alimentado automaticamente pelo orquestrador (Fase 6). Ver [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Documentação
 

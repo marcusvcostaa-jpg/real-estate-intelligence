@@ -58,6 +58,7 @@ Regra geral: **código convencional para operações determinísticas; IA apenas
 ### 08 — Market Analyst
 - SQL/views materializadas: preço médio, preço/m² (por base de área), área média, médias de quartos/banheiros, distribuição de vagas, tipologia, comparativos bairro/cidade, séries históricas.
 - **Sempre separa preço anunciado de preço transacionado.**
+- **Implementado para transações** (`app/api/analytics.py`): mediana/média 12 meses, variação anual, série mensal com meses provisórios, faixas de preço, % novos, revendidos. Base estatística: mercado pleno, com IVA. Sem área/cômodos na fonte → indicadores marcados como indisponíveis.
 
 ### 09 — Coverage Monitor
 - **Implementado** (`app/agents/coverage_monitor.py`, CLI `expand`): primeiro coberturas vencidas (`next_due_at <= now()`), depois áreas de topo vizinhas de áreas COMPLETED nunca pesquisadas pela fonte, mais próximas primeiro, limitado por `--max` (o Collector ainda aplica rate limit e orçamento diário).

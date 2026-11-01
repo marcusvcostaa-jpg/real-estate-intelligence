@@ -185,7 +185,10 @@ class PropertyTransaction(Base):
     """Actually transacted price from an official register (not an asking price)."""
 
     __tablename__ = "property_transactions"
-    __table_args__ = (UniqueConstraint("source_id", "external_id"),)
+    __table_args__ = (
+        UniqueConstraint("source_id", "external_id"),
+        Index("ix_property_transactions_region_date", "region_id", "transaction_date"),
+    )
 
     id: Mapped[int] = pk()
     property_id: Mapped[int | None] = mapped_column(ForeignKey("properties.id"), index=True)
