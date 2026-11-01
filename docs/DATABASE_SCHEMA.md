@@ -285,6 +285,11 @@ users (
 )
 ```
 
+## Notas de uso
+
+- Contadores de `search_jobs` (`listings_found`, `new_listings`, `duplicates`) contam **registros recebidos da fonte** — anúncios ou transações, conforme a fonte. Os contadores de `regions` (`listings_*`) são só para anúncios e não são alterados por fontes de transações.
+- `regions.boundary_source = 'MANUAL'`: centróide de referência inserido à mão (`add-city`), sem polígono — limites reais na Fase 5.
+
 ## Regras de derivação
 
 **Status da região** (serviço Python, testado; executado ao fim de cada job), considerando só fontes aplicáveis (aprovadas e que cobrem o país):

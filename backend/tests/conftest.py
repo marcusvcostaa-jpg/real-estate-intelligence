@@ -4,6 +4,7 @@ Locally: docker compose exec api pytest   (uses the rei_test database created on
 """
 
 import os
+import re
 
 os.environ.setdefault(
     "TEST_DATABASE_URL", "postgresql+psycopg://rei:change-me@localhost:5432/rei_test"
@@ -11,6 +12,10 @@ os.environ.setdefault(
 os.environ["DATABASE_URL"] = os.environ["TEST_DATABASE_URL"]
 os.environ.setdefault("JWT_SECRET", "test-secret-" + "x" * 40)
 os.environ["RATE_LIMIT_STORAGE"] = "memory://"
+# Redis DB 15 for tests, so source rate-limit counters of the dev stack are never touched.
+os.environ["REDIS_URL"] = re.sub(
+    r"(/\d+)?$", "/15", os.environ.get("REDIS_URL", "redis://localhost:6379/0"), count=1
+)
 
 import pytest  # noqa: E402
 from alembic.config import Config  # noqa: E402
@@ -37,7 +42,20 @@ def db(migrated_db):
     with SessionLocal() as session:
         yield session
     with migrated_db.begin() as conn:
-        conn.execute(text("TRUNCATE users RESTART IDENTITY CASCADE"))
+        # CASCADE reaches every table that references these (cities, regions, jobs, ...).
+        conn.execute(
+            text("TRUNCATE users, countries, sources, data_quality RESTART IDENTITY CASCADE")
+        )
+
+
+@pytest.fixture
+def redis_client():
+    import redis
+
+    client = redis.Redis.from_url(os.environ["REDIS_URL"])
+    client.flushdb()
+    yield client
+    client.flushdb()
 
 
 @pytest.fixture

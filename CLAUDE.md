@@ -45,6 +45,6 @@ Ver tabela em `README.md` (§ Como rodar). Essenciais:
 
 ## Fluxo de trabalho
 - Plugin **superpowers** (habilitado em `.claude/settings.json`): usar brainstorming/writing-plans para features, TDD, systematic-debugging, verification-before-completion antes de declarar algo pronto.
-- Skills do projeto em `.claude/skills/` (origem e licenças em `.claude/skills/VENDORED.md`): `supabase-postgres-best-practices` antes de qualquer schema/SQL; `react-best-practices`, `composition-patterns`, `frontend-design` no frontend; `webapp-testing` para testes de UI.
+- Skills do projeto em `.claude/skills/` (origem e licenças em `.claude/skills/VENDORED.md`): `supabase-postgres-best-practices` antes de qualquer schema/SQL; `react-best-practices`, `composition-patterns`, `frontend-design` no frontend; `webapp-testing` para testes de UI; `add-source-connector` para qualquer fonte nova.
 - Subagentes em `.claude/agents/` (architect, database-engineer, data-engineer, qa-engineer) têm donos de arquivos definidos — não rodar dois em paralelo sobre os mesmos arquivos. O agente principal revisa antes de integrar.
 - Commits pequenos, por etapa validada.

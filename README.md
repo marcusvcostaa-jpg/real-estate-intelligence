@@ -2,7 +2,7 @@
 
 Plataforma de inteligência imobiliária internacional: coleta de fontes **autorizadas**, padronização, deduplicação de imóveis entre portais, histórico de preços, controle de cobertura geográfica com PostGIS e dashboard com mapas interativos.
 
-> **Status:** Fase 2 (fundação) em andamento — ver [docs/ROADMAP.md](docs/ROADMAP.md). Ainda não há coleta de dados.
+> **Status:** Fase 3 concluída — primeira fonte ativa (Property Price Register, Dublin). Ver [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Documentação
 
@@ -56,6 +56,9 @@ docker compose exec api python -m app.cli create-user --email voce@exemplo.com -
 | Nova migration | `docker compose exec api alembic revision --autogenerate -m "descricao"` |
 | Aplicar migrations | `docker compose exec api alembic upgrade head` |
 | Lint/build frontend | `cd frontend && npm run lint && npm run build` |
+| Cadastrar cidade/região | `docker compose exec api python -m app.cli add-city --iso2 IE --country-name Ireland --currency EUR --city Dublin --admin1 "County Dublin" --region-name "County Dublin" --lat 53.3498 --lon -6.2603 --source-location ie_ppr=Dublin` |
+| Registrar / aprovar fonte | `... app.cli register-source ie_ppr` · `... app.cli approve-permission ie_ppr --note "..." [--reviewer admin@...]` |
+| Coletar | `docker compose exec api python -m app.cli collect --source ie_ppr --region-id 1` |
 | Restaurar backup | `docker compose run --rm --entrypoint sh backup /scripts/restore.sh /backups/<arquivo>.dump [banco]` |
 
 Backups diários ficam em `./backups/` (fora do git).

@@ -23,6 +23,8 @@ class Settings(BaseSettings):
 
     log_level: str = "INFO"
 
+    scraper_user_agent: str = "RealEstateIntelligenceBot/0.1"
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

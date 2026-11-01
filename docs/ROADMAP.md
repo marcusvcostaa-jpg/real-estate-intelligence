@@ -10,12 +10,13 @@ Regra: **não avançar de fase sem cumprir o critério de saída da anterior.** 
 | 2026-10-31 | Padrões adotados até decisão contrária: cidade piloto **Dublin**; primeira fonte **Property Price Register (IE)**; **sem LLM** na partida | Recomendação aprovada com o plano |
 | 2026-10-31 | Runtime de containers: **Docker Desktop** (requer WSL2) | Responsável |
 | 2026-11-01 | Repositório GitHub **privado** `marcusvcostaa-jpg/real-estate-intelligence` | Responsável |
+| 2026-11-01 | Fonte `ie_ppr` (Property Price Register) **aprovada** nas condições de `docs/DATA_SOURCES.md` | Responsável |
 
 ### Pendentes (bloqueiam a fase indicada)
 
 | Decisão | Bloqueia |
 |---|---|
-| Solicitar acesso a APIs de anúncios (Daft.ie / idealista) — ação do responsável | Fase 3 (anúncios) |
+| Solicitar acesso a APIs de anúncios (Daft.ie / idealista) — ação do responsável | Primeira fonte de **anúncios** (Fase 4 usa transações enquanto isso) |
 | Provedor de LLM (nenhum / Ollama local / API paga) | Primeira fonte com texto livre |
 
 ## Fases
@@ -45,7 +46,18 @@ Escopo:
 - Backup/restore testado.
 **Saída:** `docker compose up` sobe tudo; migration aplica e reverte; CI verde.
 
-### Fase 3 — Primeira fonte (~1 semana)
+### Fase 3 — Primeira fonte (~1 semana) ✅
+
+Entregue (2026-11-01):
+- ✅ Termos do Property Price Register verificados; aprovação do responsável registrada em `source_permissions` (evidências em `docs/DATA_SOURCES.md`).
+- ✅ Collector (`app/services/collector.py`): gate de permissão (job `SKIPPED` sem contato com a fonte), rate limit/orçamento diário no Redis, parada e `BLOCKED` em 401/403/429/HTML, `crawl_logs`, cobertura, status derivado da região, `agent_executions`, cursor retomável, job único por pesquisa.
+- ✅ Conector `ie_ppr` + CLI `add-city`, `register-source`, `approve-permission`, `collect`.
+- ✅ 30 testes (fixtures sintéticas no formato real); CI.
+- ✅ Coleta real: 255.242 vendas de Dublin (2010-01-01 → 2026-10-23), contagens e soma de preços idênticas à contagem independente do arquivo.
+- ✅ Skill `.claude/skills/add-source-connector`.
+- Observações: são preços **transacionados** (não anúncios) — anúncios dependem de acesso a APIs (pendência abaixo). Celery task de coleta fica para a Fase 6 (orquestrador); por ora a coleta é disparada pela CLI. A atribuição da PSRA deve aparecer no dashboard (Fase 7).
+
+Escopo original:
 - Verificar termos da fonte escolhida; registrar `source_permissions`.
 - Conector + Collector com gate, rate limit, paginação/cursor, `crawl_logs`.
 - Extração determinística; armazenamento.

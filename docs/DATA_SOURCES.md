@@ -40,7 +40,7 @@
 
 | Fonte | País | Licença | Observações | Status |
 |---|---|---|---|---|
-| Property Price Register | IE | Dados abertos (PSI) | CSV oficial com vendas residenciais; candidata nº 1 para Dublin | NÃO VERIFICADO |
+| Property Price Register | IE | Política de reutilização PSRA / CC BY 4.0 | CSV oficial com vendas residenciais | ✅ ATIVA (`ie_ppr`) |
 | HM Land Registry — Price Paid Data | UK (Ing./Gales) | OGL v3 | CSV mensal | NÃO VERIFICADO |
 | DVF (Demandes de valeurs foncières) | FR | Licence Ouverte | — | NÃO VERIFICADO |
 | ITBI — Prefeitura de São Paulo | BR | Dados abertos municipais | Guias de ITBI | NÃO VERIFICADO |
@@ -58,4 +58,15 @@
 
 ## 4. Fontes ativas
 
-Nenhuma. (Atualizar ao concluir a Fase 3.)
+| Código | Fonte | Tipo | Dados | Escopo | Permissão | Atualização |
+|---|---|---|---|---|---|---|
+| `ie_ppr` | Residential Property Price Register (PSRA, Irlanda) | OPEN_DATA (ZIP oficial `PPR-ALL.zip`) | Preços **transacionados** → `property_transactions` | Condado de Dublin | APPROVED em 2026-11-01 pelo responsável (chat) | 7 dias; 1 download/execução; máx. 4 req/dia |
+
+**`ie_ppr` — evidências e regras de uso** (registradas em `source_permissions`):
+- Política de reutilização da PSRA ([psr.ie](https://www.psr.ie/re-use-of-public-sector-information/), atualizada 2022-07-29): reutilização gratuita em qualquer formato, inclusive publicação, desde que: citar a fonte e o copyright da PSRA; reproduzir com exatidão; não usar de forma enganosa; não usar principalmente para publicidade; não usar para fins ilegais.
+- [data.gov.ie](https://data.gov.ie/dataset/dublin-residential-property-price-register): subconjunto de Dublin publicado pela PSRA sob **CC BY 4.0**.
+- `propertypriceregister.ie/robots.txt` → 404 (sem restrições declaradas).
+- **Atribuição obrigatória no dashboard:** "Source: Residential Property Price Register, Property Services Regulatory Authority (PSRA). © PSRA."
+- Avisos que a interface deve respeitar: não é índice de preços; preços com `is_full_market_price = false` não são valor de mercado; `vat_exclusive = true` indica preço sem IVA; sem área nem número de cômodos (a faixa "Property Size Description" fica só no `raw_payload`).
+- Formato: CSV cp1252, 9 colunas; linhas idênticas são legítimas (unidades vendidas juntas) e recebem `external_id` distinto (hash da linha + nº da ocorrência).
+- Primeira coleta (2026-11-01): 255.242 vendas (2010-01-01 a 2026-10-23), conferidas contra contagem independente do arquivo.
