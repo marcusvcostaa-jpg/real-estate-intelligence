@@ -59,3 +59,5 @@ docker compose exec api python -m app.cli create-user --email voce@exemplo.com -
 | Restaurar backup | `docker compose run --rm --entrypoint sh backup /scripts/restore.sh /backups/<arquivo>.dump [banco]` |
 
 Backups diários ficam em `./backups/` (fora do git).
+
+> **Git Bash no Windows:** prefixe comandos que passam caminhos para dentro do container com `MSYS_NO_PATHCONV=1` (ex.: o restore), senão `/scripts/...` vira um caminho do Windows. PowerShell não precisa disso.

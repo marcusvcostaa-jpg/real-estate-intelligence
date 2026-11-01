@@ -24,12 +24,17 @@ Regra: **não avançar de fase sem cumprir o critério de saída da anterior.** 
 Estrutura de pastas, documentação, CLAUDE.md, subagentes, skills, git.
 **Saída:** aprovação dos documentos.
 
-### Fase 2 — Fundação (~1 semana) 🚧
+### Fase 2 — Fundação (~1 semana) ✅ (exceto CI no GitHub)
 
-Estado (2026-10-31):
-- ✅ Código: compose, Dockerfiles, FastAPI (config, logs JSON, `/health`, login/refresh/me, papéis, rate limit), modelos SQLAlchemy das 17 tabelas, Alembic configurado, Celery (worker/beat), CLI `create-user`, frontend Next.js 16 com login via cookies httpOnly, workflow de CI, backup/restore.
-- ✅ Verificado sem Docker: lint backend, testes unitários de segurança, DDL de todos os modelos compila para Postgres, `npm run lint`, `tsc`, `npm run build`.
-- ⏳ Bloqueado até o Docker estar instalado: gerar e revisar a migration inicial (extensões `postgis`/`citext`, view materializada `region_neighbors`), rodar testes de integração, subir o compose, testar backup/restore e login de ponta a ponta.
+Validação local (2026-11-01, Docker Desktop 4.97 / Engine 29.9.2 / Compose v5.6.1 sobre WSL 3.0.3):
+- ✅ Migration inicial `54aec88d8bff` revisada: 17 tabelas, 14 enums, extensões `postgis`/`citext`, view materializada `region_neighbors`. `upgrade → downgrade → upgrade → downgrade` sem erro; `alembic check` sem divergência entre modelos e banco.
+- ✅ `pytest`: 10 testes (segurança, login/refresh/me, credenciais inválidas, usuário inativo, rate limit 429, papéis 403/200, health) passando contra PostGIS real.
+- ✅ `docker compose up`: db e redis healthy; API `/health` = ok (db, redis); `/docs` 200; worker Celery responde `pong`; beat iniciado; backup diário gravado.
+- ✅ Navegador: senha errada rejeitada; login → página protegida; tokens invisíveis ao JavaScript (cookies HttpOnly); logout → `/login`; `proxy.ts` renova o access token a partir do refresh.
+- ✅ Backup restaurado em banco descartável: mesmas tabelas, revisão Alembic, view e enums.
+- ⏳ CI no GitHub Actions: workflow pronto, aguardando criação do repositório.
+
+Escopo:
 
 Escopo:
 - `docker-compose.yml` (db, redis, api, worker, beat, frontend, backup).

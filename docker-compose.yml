@@ -1,4 +1,8 @@
 # Local development stack. Copy .env.example to .env first.
+# Fixed project name: containers, network and volumes are prefixed "real-estate-intelligence"
+# and stay isolated from other projects on this machine.
+name: real-estate-intelligence
+
 x-backend: &backend
   build:
     context: .

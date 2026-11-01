@@ -2,6 +2,8 @@
 
 > PostgreSQL 16 + PostGIS 3. Este documento é a **especificação** para a migration inicial (Fase 2).
 > Depois que a migration existir, **a fonte da verdade é o Alembic**; este arquivo é atualizado junto com cada migration.
+>
+> Estado: migration inicial `54aec88d8bff` aplicada (modelos em `backend/app/models/`). A view `region_neighbors` usa uma regra provisória (polígonos que se tocam, ou centróides a até 1,5 km quando falta polígono), a revisar com dados reais na Fase 5.
 
 ## Convenções
 
