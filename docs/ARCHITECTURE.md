@@ -147,5 +147,5 @@ Cada conector tem testes de contrato com fixtures gravadas (respostas reais anon
 | Fase | Status |
 |---|---|
 | 1 — Arquitetura | ✅ documentação e estrutura |
-| 2 — Fundação | ✅ validada localmente (CI no GitHub pendente do repositório) |
+| 2 — Fundação | ✅ validada localmente e no CI |
 | 3–8 | Pendente — ver [ROADMAP.md](ROADMAP.md) |

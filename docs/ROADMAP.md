@@ -9,12 +9,12 @@ Regra: **não avançar de fase sem cumprir o critério de saída da anterior.** 
 | 2026-10-31 | Plano da Fase 1 aprovado: monólito modular, agentes como tarefas Celery, LangGraph e Browser Use adiados | Responsável |
 | 2026-10-31 | Padrões adotados até decisão contrária: cidade piloto **Dublin**; primeira fonte **Property Price Register (IE)**; **sem LLM** na partida | Recomendação aprovada com o plano |
 | 2026-10-31 | Runtime de containers: **Docker Desktop** (requer WSL2) | Responsável |
+| 2026-11-01 | Repositório GitHub **privado** `marcusvcostaa-jpg/real-estate-intelligence` | Responsável |
 
 ### Pendentes (bloqueiam a fase indicada)
 
 | Decisão | Bloqueia |
 |---|---|
-| Criar repositório GitHub privado `real-estate-intelligence`? | CI rodar de fato (workflow já existe) |
 | Solicitar acesso a APIs de anúncios (Daft.ie / idealista) — ação do responsável | Fase 3 (anúncios) |
 | Provedor de LLM (nenhum / Ollama local / API paga) | Primeira fonte com texto livre |
 
@@ -24,7 +24,7 @@ Regra: **não avançar de fase sem cumprir o critério de saída da anterior.** 
 Estrutura de pastas, documentação, CLAUDE.md, subagentes, skills, git.
 **Saída:** aprovação dos documentos.
 
-### Fase 2 — Fundação (~1 semana) ✅ (exceto CI no GitHub)
+### Fase 2 — Fundação (~1 semana) ✅
 
 Validação local (2026-11-01, Docker Desktop 4.97 / Engine 29.9.2 / Compose v5.6.1 sobre WSL 3.0.3):
 - ✅ Migration inicial `54aec88d8bff` revisada: 17 tabelas, 14 enums, extensões `postgis`/`citext`, view materializada `region_neighbors`. `upgrade → downgrade → upgrade → downgrade` sem erro; `alembic check` sem divergência entre modelos e banco.
@@ -32,7 +32,7 @@ Validação local (2026-11-01, Docker Desktop 4.97 / Engine 29.9.2 / Compose v5.
 - ✅ `docker compose up`: db e redis healthy; API `/health` = ok (db, redis); `/docs` 200; worker Celery responde `pong`; beat iniciado; backup diário gravado.
 - ✅ Navegador: senha errada rejeitada; login → página protegida; tokens invisíveis ao JavaScript (cookies HttpOnly); logout → `/login`; `proxy.ts` renova o access token a partir do refresh.
 - ✅ Backup restaurado em banco descartável: mesmas tabelas, revisão Alembic, view e enums.
-- ⏳ CI no GitHub Actions: workflow pronto, aguardando criação do repositório.
+- ✅ CI no GitHub Actions (repositório privado `marcusvcostaa-jpg/real-estate-intelligence`): jobs backend (lint, migrations ida/volta, pytest com PostGIS) e frontend (lint, build com type-check).
 
 Escopo:
 
