@@ -1,6 +1,6 @@
 # API — Real Estate Intelligence
 
-> Status: Fase 2 — autenticação e health implementados (✅); demais endpoints planejados. A documentação interativa será gerada pelo FastAPI em `/docs` (OpenAPI); este arquivo lista o contrato pretendido e é atualizado a cada endpoint entregue.
+> Status: Fase 5 — autenticação, health, regiões e cobertura implementados (✅); demais endpoints planejados. A documentação interativa será gerada pelo FastAPI em `/docs` (OpenAPI); este arquivo lista o contrato pretendido e é atualizado a cada endpoint entregue.
 
 Base: `/api/v1` · Autenticação: `Authorization: Bearer <JWT>` · Papéis: ADMIN, ANALYST, VIEWER.
 Paginação: `?limit=&cursor=` (cursor opaco). Erros: `{"detail": "...", "code": "..."}`.
@@ -21,11 +21,15 @@ Paginação: `?limit=&cursor=` (cursor opaco). Erros: `{"detail": "...", "code":
 | GET | `/dedup/candidates` | ANALYST | Fila de revisão | 4 |
 | POST | `/dedup/candidates/{id}/decision` | ADMIN | SAME_PROPERTY / DIFFERENT | 4 |
 | POST | `/cities` | ADMIN | Cadastra cidade semente (dispara RegionExplorer) | 5 |
-| GET | `/regions` | VIEWER | Regiões com status (GeoJSON) | 5 |
-| GET | `/regions/{id}` | VIEWER | Detalhe, cobertura por fonte, contadores | 5 |
-| GET | `/coverage/summary` | VIEWER | Pesquisadas, pendentes, em processamento | 5 |
+| GET | `/regions?parent_id=` | VIEWER | ✅ GeoJSON FeatureCollection (topo, ou filhas de `parent_id`); propriedades: `id, name, level, status, parent_id, last_searched_at, children, sales, sales_12m, median_12m`; `median_basis` descreve a mediana (transacionado, mercado pleno, com IVA, 12 meses). Geometria simplificada só para exibição | 5 |
+| GET | `/regions/{id}` | VIEWER | ✅ Detalhe: região pai, contadores (`sales`, `properties`, filhos), mediana, `coverage[]` por fonte (status, concluída, próxima), `neighbors[]`; 404 se não existir | 5 |
+| GET | `/coverage/summary` | VIEWER | ✅ `regions_by_status` (topo e todas), `totals` (imóveis, transações, anúncios, fontes ativas, última atualização, revisões de dedup pendentes), `attributions[]` obrigatórias | 5 |
 | GET | `/jobs` | ANALYST | Jobs com filtros por status/fonte/região | 6 |
 | POST | `/jobs` | ADMIN | Pesquisa manual de uma região × fonte | 6 |
 | GET | `/analytics/kpis` | VIEWER | Indicadores da página inicial | 7 |
 | GET | `/analytics/regions` | VIEWER | Preço médio, preço/m², área média etc. por região | 7 |
 | GET | `/analytics/compare` | VIEWER | Comparação entre bairros/cidades | 7 |
+
+## Frontend (backend-for-frontend)
+
+O navegador nunca chama a API diretamente. Rotas do Next.js repassam a requisição com o token do cookie httpOnly: `GET /api/regions?parent_id=`, `GET /api/regions/{id}`. `GET /vendor/maplibre-worker` serve o web worker da MapLibre (arquivo do pacote instalado).
