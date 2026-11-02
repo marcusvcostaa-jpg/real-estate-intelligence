@@ -2,6 +2,7 @@
 
 Rules flag records in data_quality; they never change or delete the published values."""
 
+import re
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
@@ -10,15 +11,26 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from app.agents.deduplication import Txn, untrusted_eircodes
-from app.models import DataQualityIssue, PropertyTransaction
+from app.models import Country, DataQualityIssue, PropertyTransaction, Source
 from app.validators.address import normalize_eircode
 
 # ponytail: fixed bounds; replace with per-region percentiles once Market Analyst exists.
 LOW_PRICE = Decimal("10000")
 HIGH_PRICE = Decimal("20000000")
+_CEP = re.compile(r"\d{5}-\d{3}")
 
 
-def check_transaction(t: PropertyTransaction, today: date) -> list[tuple[str, str, str]]:
+def postal_code_valid(country_iso2: str | None, code: str) -> bool:
+    if country_iso2 == "IE":
+        return normalize_eircode(code) is not None
+    if country_iso2 == "BR":
+        return bool(_CEP.fullmatch(code))
+    return True  # no rule for this country yet
+
+
+def check_transaction(
+    t: PropertyTransaction, today: date, country_iso2: str | None = "IE"
+) -> list[tuple[str, str, str]]:
     """Return (rule_code, severity, message) for each issue found."""
     issues = []
     if t.price <= 0:
@@ -31,9 +43,12 @@ def check_transaction(t: PropertyTransaction, today: date) -> list[tuple[str, st
         issues.append(("DATE_IN_FUTURE", "ERROR", f"transaction_date {t.transaction_date}"))
     if not t.address_original:
         issues.append(("ADDRESS_MISSING", "ERROR", "no address"))
-    if t.postal_code and normalize_eircode(t.postal_code) is None:
-        issues.append(("EIRCODE_INVALID", "WARNING", f"invalid Eircode {t.postal_code!r}"))
-    if t.is_full_market_price is None or t.vat_exclusive is None:
+    if t.postal_code and not postal_code_valid(country_iso2, t.postal_code):
+        rule = "EIRCODE_INVALID" if country_iso2 == "IE" else "POSTAL_CODE_INVALID"
+        issues.append((rule, "WARNING", f"invalid postal code {t.postal_code!r}"))
+    # PPR publishes Yes/No flags: NULL means an unrecognized value. Elsewhere NULL can be a
+    # deliberate "not determinable" (e.g. ITBI fractional transfers) and is not an issue.
+    if country_iso2 == "IE" and (t.is_full_market_price is None or t.vat_exclusive is None):
         issues.append(("FLAG_UNRECOGNIZED", "WARNING", "market-price or VAT flag not Yes/No"))
     return issues
 
@@ -42,6 +57,11 @@ def validate_transactions(db: Session, source_id: int, batch: int = 5000) -> dic
     """Flag issues for every transaction of a source. Re-runnable: an open issue is never
     duplicated (partial unique index on data_quality)."""
     today = datetime.now(UTC).date()
+    country = db.scalar(
+        select(Country.iso2)
+        .join(Source, Source.country_id == Country.id)
+        .where(Source.id == source_id)
+    )
     counts: dict[str, int] = {}
     last_id = 0
     while True:
@@ -55,7 +75,7 @@ def validate_transactions(db: Session, source_id: int, batch: int = 5000) -> dic
             break
         values = []
         for t in rows:
-            for rule, severity, message in check_transaction(t, today):
+            for rule, severity, message in check_transaction(t, today, country):
                 counts[rule] = counts.get(rule, 0) + 1
                 values.append(
                     {
@@ -78,6 +98,8 @@ def validate_transactions(db: Session, source_id: int, batch: int = 5000) -> dic
         db.commit()
         last_id = rows[-1].id
 
+    if country != "IE":
+        return counts
     # Group rule: an Eircode shared by addresses with different numbers is a placeholder/typo.
     rows = db.execute(
         select(

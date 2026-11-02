@@ -24,6 +24,8 @@ export type RegionProps = {
   sales: number | null;
   sales_12m: number | null;
   median_12m: number | null;
+  country: string | null;
+  currency: string | null;
 };
 
 export type RegionCollection = GeoJSON.FeatureCollection<GeoJSON.Geometry, RegionProps> & {
@@ -85,19 +87,28 @@ export type AreaStats = {
   mean_12m: number | null;
   median_prev_12m: number | null;
   median_change_pct: number | null;
-  new_sales_12m: number;
+  median_price_m2_12m: number | null;
+  price_m2_sales_12m: number;
+  new_sales_12m: number | null;
   properties: number;
   repeat_sold_properties: number;
 };
 
-export type AreasResponse = { areas: AreaStats[]; basis: string; unavailable: Record<string, string> };
+export type AreasResponse = {
+  country: string;
+  currency: string;
+  areas: AreaStats[];
+  basis: string | null;
+  price_m2_basis: string | null;
+  unavailable: Record<string, string>;
+};
 
 export type TimeSeries = {
   series: { region_id: number; name: string; points: { month: string; sales: number; median: number; provisional: boolean }[] }[];
   basis: string;
 };
 
-export type PriceBands = { bands: { min: number; max: number | null; sales: number }[]; basis: string };
+export type PriceBands = { currency: string; bands: { min: number; max: number | null; sales: number }[]; basis: string };
 
 export type PropertyRow = {
   public_id: string;
@@ -122,6 +133,8 @@ export type PropertyDetail = {
   postal_code: string | null;
   property_type: string;
   category: string;
+  built_area_m2: number | null;
+  land_area_m2: number | null;
   region: string | null;
   pending_reviews: number;
   price_kind: string;

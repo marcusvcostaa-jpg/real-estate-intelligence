@@ -118,6 +118,7 @@ def test_regions_api_requires_auth_and_returns_geojson(client, db):
 
     seed, source = setup_source(db)
     seed.geom = square(-7, 53)
+    seed.boundary_source = "OFFICIAL:tailte_nsb_2019_gen20m"  # attribution follows the data used
     db.commit()
     assert client.get("/api/v1/regions").status_code == 401
 
@@ -127,7 +128,10 @@ def test_regions_api_requires_auth_and_returns_geojson(client, db):
     assert fc["type"] == "FeatureCollection"
     assert [f["properties"]["name"] for f in fc["features"]] == ["County Dublin"]
     assert fc["features"][0]["geometry"]["type"] in ("Polygon", "MultiPolygon")
-    assert "VAT-inclusive" in fc["median_basis"]
+    assert "VAT-inclusive" in fc["median_basis"]["IE"]
+    assert fc["features"][0]["properties"]["currency"] == "EUR"
+    only_br = client.get("/api/v1/regions?country=BR", headers=headers).json()
+    assert only_br["features"] == [] and only_br["median_basis"].startswith("declared")
 
     detail = client.get(f"/api/v1/regions/{seed.id}", headers=headers).json()
     assert detail["name"] == "County Dublin" and detail["coverage"] == []
@@ -137,3 +141,54 @@ def test_regions_api_requires_auth_and_returns_geojson(client, db):
     assert summary["totals"]["active_sources"] == 1
     assert any("PSRA" in a for a in summary["attributions"])
     assert any("Tailte" in a for a in summary["attributions"])
+    assert not any("IBGE" in a for a in summary["attributions"])
+
+
+def test_import_ibge_municipality_with_districts_is_rerunnable(db):
+    import json
+
+    from app.geographic.ibge import import_municipality
+
+    def poly(x0, y0, size=1.0):
+        x1, y1 = x0 + size, y0 + size
+        return {
+            "type": "Polygon",
+            "coordinates": [[[x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]]],
+        }
+
+    def handler(request):
+        layer = request.url.params["typeNames"]
+        if "munic" in layer:
+            feats = [
+                {
+                    "type": "Feature",
+                    "geometry": poly(-47, -24, 2),
+                    "properties": {"cd_mun": "3550308", "nm_mun": "Cidade Teste", "sigla_uf": "SP"},
+                }
+            ]
+        else:
+            feats = [
+                {
+                    "type": "Feature",
+                    "geometry": poly(-47 + i, -24),
+                    "properties": {"cd_dist": f"35503080{i}", "nm_dist": f"Distrito {i}"},
+                }
+                for i in range(2)
+            ]
+        return httpx.Response(200, text=json.dumps({"features": feats}))
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    first = import_municipality(db, client, "3550308", "br_sp_itbi")
+    again = import_municipality(db, client, "3550308", "br_sp_itbi")
+    assert first["region_id"] == again["region_id"] and first["districts"] == 2
+    root = db.get(Region, first["region_id"])
+    assert root.name == "Cidade Teste (SP)" and root.parent_id is None
+    assert root.source_location_ids == {"br_sp_itbi": "3550308"}
+    children = db.scalars(select(Region).where(Region.parent_id == root.id)).all()
+    assert sorted(c.name for c in children) == ["Distrito 0", "Distrito 1"]  # no duplicates
+    country = db.scalar(select(Country).where(Country.iso2 == "BR"))
+    assert country.default_currency == "BRL"
+    import pytest
+
+    with pytest.raises(ValueError):
+        import_municipality(db, client, "355' OR 1=1", None)

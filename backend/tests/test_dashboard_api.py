@@ -52,7 +52,8 @@ def test_kpis_and_areas(client, db):
     assert county["sales_12m"] == 4
     assert county["median_12m"] == 325000.0  # 250k, 250k, 400k, 600k
     assert county["repeat_sold_properties"] == 1
-    assert "floor area" in a["unavailable"]["price_per_m2"]
+    assert a["unavailable"]["price_per_m2"] == "no_floor_area"
+    assert a["currency"] == "EUR" and a["areas"][0]["median_price_m2_12m"] is None
 
 
 def test_timeseries_and_bands(client, db):
@@ -142,3 +143,36 @@ def test_review_queue_decisions(client, db):
         .where(DedupCandidate.decision == DedupDecision.PENDING)
     )
     assert pending == 0
+
+
+def test_statistics_never_mix_countries(client, db):
+    from geoalchemy2.elements import WKTElement
+
+    from app.models import City, Country, Region
+    from app.models.enums import RegionLevel
+
+    region, _ = seeded(db)
+    point = WKTElement("POINT(-46.6 -23.6)", srid=4326)
+    br = Country(iso2="BR", name="Brasil", default_currency="BRL")
+    db.add(br)
+    db.flush()
+    city = City(country_id=br.id, name="Cidade Teste", centroid=point)
+    db.add(city)
+    db.flush()
+    sp = Region(
+        city_id=city.id, level=RegionLevel.DISTRICT, name="Cidade Teste (SP)", centroid=point
+    )
+    db.add(sp)
+    db.commit()
+    h = headers(client, db)
+
+    mixed = client.get(f"/api/v1/analytics/timeseries?region_ids={region.id},{sp.id}", headers=h)
+    assert mixed.status_code == 400
+    countries = client.get("/api/v1/analytics/countries", headers=h).json()["countries"]
+    assert [(c["iso2"], c["currency"]) for c in countries] == [("IE", "EUR"), ("BR", "BRL")]
+    areas = client.get("/api/v1/analytics/areas?country=BR", headers=h).json()
+    assert areas["currency"] == "BRL" and areas["areas"] == []  # Irish sales never leak in
+    assert "new_vs_second_hand" in areas["unavailable"]
+    bands = client.get("/api/v1/analytics/price-bands?country=BR", headers=h).json()
+    assert bands["currency"] == "BRL" and sum(b["sales"] for b in bands["bands"]) == 0
+    assert client.get("/api/v1/analytics/areas?country=XX", headers=h).status_code == 404

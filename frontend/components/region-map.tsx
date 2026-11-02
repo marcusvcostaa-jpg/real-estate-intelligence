@@ -11,7 +11,7 @@ import {
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
-import { BASIS_PT } from "@/components/format";
+import { BASIS_PT, money } from "@/components/format";
 import type { RegionCollection, RegionDetail, RegionStatus } from "@/types/api";
 
 setWorkerUrl("/vendor/maplibre-worker"); // see app/vendor/maplibre-worker/route.ts
@@ -28,28 +28,34 @@ export const STATUS: Record<RegionStatus, { label: string; color: string }> = {
   REQUIRES_REVIEW: { label: "Requer revisão", color: "#9333ea" },
   NOT_STARTED: { label: "Pendente", color: "#9ca3af" },
 };
-const PRICE_STOPS: [number, string][] = [
-  [250_000, "#dbeafe"],
-  [350_000, "#93c5fd"],
-  [450_000, "#3b82f6"],
-  [600_000, "#1d4ed8"],
-  [800_000, "#1e3a8a"],
-];
+// Sequential blues per currency (prices are never compared across currencies).
+const RAMP = ["#dbeafe", "#93c5fd", "#3b82f6", "#1d4ed8", "#1e3a8a"];
+const PRICE_LIMITS: Record<string, number[]> = {
+  EUR: [250_000, 350_000, 450_000, 600_000, 800_000],
+  BRL: [300_000, 450_000, 600_000, 800_000, 1_200_000],
+};
+const priceStops = (currency: string): [number, string][] =>
+  (PRICE_LIMITS[currency] ?? PRICE_LIMITS.EUR).map((v, i) => [v, RAMP[i]]);
+// Initial view per country (the map shows one country at a time).
+const VIEW: Record<string, { center: [number, number]; zoom: number }> = {
+  IE: { center: [-7.6, 53.4], zoom: 6 },
+  BR: { center: [-46.63, -23.65], zoom: 9 },
+};
 
 type ColorMode = "status" | "price";
 
-const eur = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const int = new Intl.NumberFormat("pt-BR");
 const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("pt-BR") : "—");
 
-function fillColor(mode: ColorMode): ExpressionSpecification {
+function fillColor(mode: ColorMode, currency: string): ExpressionSpecification {
   if (mode === "price") {
+    const stops = priceStops(currency);
     return [
       "case",
       ["==", ["get", "median_12m"], null],
       "#e5e7eb",
-      ["step", ["get", "median_12m"], PRICE_STOPS[0][1], ...PRICE_STOPS.slice(1).flatMap(([v, c]) => [v, c])],
-    ] as unknown as ExpressionSpecification; // built dynamically from STATUS / PRICE_STOPS
+      ["step", ["get", "median_12m"], stops[0][1], ...stops.slice(1).flatMap(([v, c]) => [v, c])],
+    ] as unknown as ExpressionSpecification; // built dynamically from STATUS / price stops
   }
   return [
     "match",
@@ -59,7 +65,20 @@ function fillColor(mode: ColorMode): ExpressionSpecification {
   ] as unknown as ExpressionSpecification; // built dynamically from STATUS / PRICE_STOPS
 }
 
-export function RegionMap({ initial, attributions }: { initial: RegionCollection; attributions: string[] }) {
+export function RegionMap({
+  initial,
+  attributions,
+  country,
+  currency,
+}: {
+  initial: RegionCollection;
+  attributions: string[];
+  country: string;
+  currency: string;
+}) {
+  const view = VIEW[country] ?? VIEW.IE;
+  const basis = BASIS_PT[country] ?? "";
+  const stops = priceStops(currency);
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
   const [mode, setMode] = useState<ColorMode>("status");
@@ -79,8 +98,8 @@ export function RegionMap({ initial, attributions }: { initial: RegionCollection
     const m = new MapLibreMap({
       container: container.current,
       style: STYLE_URL,
-      center: [-7.6, 53.4],
-      zoom: 6,
+      center: view.center,
+      zoom: view.zoom,
       attributionControl: { customAttribution: attributions },
     });
     map.current = m;
@@ -95,7 +114,7 @@ export function RegionMap({ initial, attributions }: { initial: RegionCollection
           id: `${id}-fill`,
           type: "fill",
           source: id,
-          paint: { "fill-color": fillColor("status"), "fill-opacity": id === "regions" ? 0.55 : 0.65 },
+          paint: { "fill-color": fillColor("status", currency), "fill-opacity": id === "regions" ? 0.55 : 0.65 },
         });
         m.addLayer({
           id: `${id}-line`,
@@ -120,8 +139,8 @@ export function RegionMap({ initial, attributions }: { initial: RegionCollection
   useEffect(() => {
     const m = map.current;
     if (!m?.isStyleLoaded()) return;
-    for (const id of ["regions", "children"]) m.setPaintProperty(`${id}-fill`, "fill-color", fillColor(mode));
-  }, [mode]);
+    for (const id of ["regions", "children"]) m.setPaintProperty(`${id}-fill`, "fill-color", fillColor(mode, currency));
+  }, [mode, currency]);
 
 
   async function showChildren(region: RegionDetail) {
@@ -141,7 +160,7 @@ export function RegionMap({ initial, attributions }: { initial: RegionCollection
   function clearChildren() {
     (map.current?.getSource("children") as GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features: [] });
     setChildrenOf(null);
-    map.current?.flyTo({ center: [-7.6, 53.4], zoom: 6 });
+    map.current?.flyTo({ center: view.center, zoom: view.zoom });
   }
 
   return (
@@ -174,14 +193,14 @@ export function RegionMap({ initial, attributions }: { initial: RegionCollection
             <div>
               <ul className="space-y-1">
                 <li className="flex items-center gap-2"><span className="inline-block h-3 w-3 rounded-sm bg-[#e5e7eb]" />Sem dados</li>
-                {PRICE_STOPS.map(([v, c], i) => (
+                {stops.map(([v, c], i) => (
                   <li key={v} className="flex items-center gap-2">
                     <span className="inline-block h-3 w-3 rounded-sm" style={{ background: c }} />
-                    {i === 0 ? `< ${eur.format(PRICE_STOPS[1][0])}` : `≥ ${eur.format(v)}`}
+                    {i === 0 ? `< ${money(stops[1][0], currency)}` : `≥ ${money(v, currency)}`}
                   </li>
                 ))}
               </ul>
-              <p className="mt-2 max-w-48 text-zinc-500">{BASIS_PT}, últimos 12 meses</p>
+              <p className="mt-2 max-w-48 text-zinc-500">{basis}, últimos 12 meses</p>
             </div>
           )}
           {childrenOf && (
@@ -211,14 +230,14 @@ export function RegionMap({ initial, attributions }: { initial: RegionCollection
               <dt className="text-zinc-500">Vendas (12 meses)*</dt>
               <dd>{detail.sales_12m != null ? int.format(detail.sales_12m) : "—"}</dd>
               <dt className="text-zinc-500">Mediana (12 meses)*</dt>
-              <dd>{detail.median_12m != null ? eur.format(detail.median_12m) : "—"}</dd>
+              <dd>{detail.median_12m != null ? money(detail.median_12m, detail.currency ?? currency) : "—"}</dd>
               <dt className="text-zinc-500">Última pesquisa</dt>
               <dd>{day(detail.last_searched_at)}</dd>
             </dl>
-            <p className="text-xs text-zinc-500">* {BASIS_PT}, últimos 12 meses.</p>
+            <p className="text-xs text-zinc-500">* {basis}, últimos 12 meses.</p>
             {detail.sales == null && detail.parent_id != null && (
               <p className="text-xs text-zinc-500">
-                Vendas ainda não são localizadas neste nível: o registro de preços não traz coordenadas.
+                Vendas ainda não são localizadas neste nível: o registro de preços não traz coordenadas nem o distrito.
               </p>
             )}
             <div>

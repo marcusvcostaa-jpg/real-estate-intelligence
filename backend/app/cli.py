@@ -27,6 +27,7 @@ from app.core.config import get_settings
 from app.core.security import hash_password
 from app.database.session import SessionLocal
 from app.geographic.boundaries import import_counties, refresh_neighbors, subdivide_county
+from app.geographic.ibge import import_municipality
 from app.models import City, Country, Region, Source, SourcePermission, User
 from app.models.enums import JobStatus, PermissionStatus, RegionLevel, SourceStatus, UserRole
 from app.services.collector import create_job, run_job
@@ -187,6 +188,16 @@ def import_boundaries(source_location: str | None, subdivide: list[str]) -> None
         db.commit()
 
 
+def import_ibge(municipality: str, source_location: str | None) -> None:
+    headers = {"User-Agent": get_settings().scraper_user_agent}
+    with SessionLocal() as db, httpx.Client(headers=headers, timeout=120) as client:
+        result = import_municipality(db, client, municipality, source_location)
+        print(result)
+        refresh_neighbors(db)
+        refresh_region_status(db, result["region_id"])
+        db.commit()
+
+
 def expand(code: str, max_jobs: int, run: bool) -> None:
     with SessionLocal() as db:
         source = db.scalar(select(Source).where(Source.code == code))
@@ -282,6 +293,10 @@ def main() -> None:
     p.add_argument("--source-location", help="source code whose county names match (e.g. ie_ppr)")
     p.add_argument("--subdivide", action="append", default=[], metavar="COUNTY")
 
+    p = sub.add_parser("import-ibge")
+    p.add_argument("--municipality", required=True, help="IBGE code, e.g. 3550308 (São Paulo)")
+    p.add_argument("--source-location", help="source code that names it by this code")
+
     p = sub.add_parser("expand")
     p.add_argument("--source", required=True)
     p.add_argument("--max", type=int, default=3)
@@ -316,6 +331,8 @@ def main() -> None:
             dedup_eval(args.source, args.thresholds)
         case "import-boundaries":
             import_boundaries(args.source_location, args.subdivide)
+        case "import-ibge":
+            import_ibge(args.municipality, args.source_location)
         case "expand":
             expand(args.source, args.max, args.run)
         case "orchestrate":

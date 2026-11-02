@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { day, eur, int } from "@/components/format";
+import { type Country, CountrySwitch, pickCountry } from "@/components/country-switch";
+import { day, int, money } from "@/components/format";
 import { apiGet } from "@/services/api";
 import type { AreasResponse, PropertyPage } from "@/types/api";
 
@@ -31,9 +32,13 @@ async function Results({ searchParams }: { searchParams: PageProps<"/properties"
     const value = params[key];
     if (typeof value === "string" && value.trim()) query.set(key, value.trim());
   }
+  const { countries } = await apiGet<{ countries: Country[] }>("/analytics/countries");
+  const country = pickCountry(countries, params.country);
+  const currency = countries.find((c) => c.iso2 === country)?.currency ?? "EUR";
+  query.set("country", country); // prices are only comparable within one currency
   const [page, { areas }] = await Promise.all([
     apiGet<PropertyPage>(`/properties?${query}`),
-    apiGet<AreasResponse>("/analytics/areas"),
+    apiGet<AreasResponse>(`/analytics/areas?country=${country}`),
   ]);
   const v = (key: string) => (typeof params[key] === "string" ? (params[key] as string) : "");
   const next = new URLSearchParams(query);
@@ -41,7 +46,9 @@ async function Results({ searchParams }: { searchParams: PageProps<"/properties"
 
   return (
     <>
+      <CountrySwitch countries={countries} current={country} path="/properties" />
       <form className="mt-4 grid grid-cols-2 gap-3 rounded-lg border border-zinc-200 p-4 text-sm md:grid-cols-4 lg:grid-cols-6 dark:border-zinc-800" aria-label="Filtros">
+        <input type="hidden" name="country" value={country} />
         <label className="col-span-2">Endereço contém<input name="q" defaultValue={v("q")} className={input} /></label>
         <label>Área
           <select name="region_id" defaultValue={v("region_id")} className={input}>
@@ -56,8 +63,8 @@ async function Results({ searchParams }: { searchParams: PageProps<"/properties"
             <option value="new">Novo</option>
           </select>
         </label>
-        <label>Preço mínimo (€)<input name="min_price" type="number" min={0} step={1000} defaultValue={v("min_price")} className={input} /></label>
-        <label>Preço máximo (€)<input name="max_price" type="number" min={0} step={1000} defaultValue={v("max_price")} className={input} /></label>
+        <label>Preço mínimo ({currency})<input name="min_price" type="number" min={0} step={1000} defaultValue={v("min_price")} className={input} /></label>
+        <label>Preço máximo ({currency})<input name="max_price" type="number" min={0} step={1000} defaultValue={v("max_price")} className={input} /></label>
         <label>Vendido a partir de<input name="sold_from" type="date" defaultValue={v("sold_from")} className={input} /></label>
         <label>Vendido até<input name="sold_to" type="date" defaultValue={v("sold_to")} className={input} /></label>
         <label className="flex items-center gap-2"><input type="checkbox" name="full_market_only" value="true" defaultChecked={v("full_market_only") === "true"} />Só valor de mercado pleno</label>
@@ -67,7 +74,9 @@ async function Results({ searchParams }: { searchParams: PageProps<"/properties"
           <Link href="/properties" className="text-xs text-zinc-500 underline">Limpar</Link>
         </div>
         <p className="col-span-full text-xs text-zinc-500">
-          Área construída, quartos, banheiros e garagem: indisponíveis — a fonte atual não informa.
+          {country === "BR"
+            ? "Quartos, banheiros e garagem: indisponíveis — a fonte não informa. A área construída do IPTU aparece no detalhe do imóvel."
+            : "Área construída, quartos, banheiros e garagem: indisponíveis — a fonte atual não informa."}
         </p>
       </form>
 
@@ -77,7 +86,7 @@ async function Results({ searchParams }: { searchParams: PageProps<"/properties"
             <tr>
               <th className="py-2 pr-4">Endereço</th>
               <th className="py-2 pr-4">Área</th>
-              <th className="py-2 pr-4">Eircode</th>
+              <th className="py-2 pr-4">{country === "BR" ? "CEP" : "Eircode"}</th>
               <th className="py-2 pr-4 text-right">Última venda</th>
               <th className="py-2 pr-4 text-right">Preço</th>
               <th className="py-2 pr-4">Observações</th>
@@ -91,7 +100,7 @@ async function Results({ searchParams }: { searchParams: PageProps<"/properties"
                 <td className="py-2 pr-4">{p.region}</td>
                 <td className="py-2 pr-4 font-mono text-xs">{p.postal_code ?? "—"}</td>
                 <td className="py-2 pr-4 text-right">{day(p.last_sale_date)}</td>
-                <td className="py-2 pr-4 text-right">{eur.format(p.last_sale_price)}</td>
+                <td className="py-2 pr-4 text-right">{money(p.last_sale_price, p.currency)}</td>
                 <td className="py-2 pr-4 text-xs text-zinc-500">
                   {[p.last_is_new && "novo", p.last_vat_exclusive && "sem IVA", p.last_full_market === false && "abaixo do valor de mercado"].filter(Boolean).join(" · ") || "—"}
                 </td>

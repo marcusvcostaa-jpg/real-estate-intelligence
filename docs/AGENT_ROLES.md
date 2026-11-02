@@ -53,6 +53,7 @@ Regra geral: **código convencional para operações determinísticas; IA apenas
 ### 07 — Deduplication
 - **Transações (implementado, `dedup-txn-1`):** Eircode confiável → endereço normalizado idêntico → fuzzy (token_sort ≥ 95) só se as diferenças forem de digitação; palavra extra de um lado com score ≥ 85 → revisão. Vetos: números (rotulados) diferentes, distrito diferente, sem número, Eircodes diferentes, mesma data de venda. Eircode compartilhado por endereços com números diferentes é ignorado (placeholder). Precisão medida 99,50% contra Eircode.
 - **Anúncios (quando houver fonte):** exata → blocking espacial → score → vetos (unidade, área ±10%, quartos, tipo) → decisão.
+- **Fonte com identificador próprio (implementado):** quando o conector preenche `source_property_key` (ex.: SQL do IPTU no ITBI de São Paulo), as vendas são agrupadas exatamente por ele — sem fuzzy e sem revisão; vendas sem chave (frações, unidades declaradas no lote) ficam como imóveis próprios.
 - Vínculo reversível (`property_id`); nada é apagado; ligações fuzzy ficam registradas como `AUTO_LINKED` em `dedup_candidates`.
 
 ### 08 — Market Analyst

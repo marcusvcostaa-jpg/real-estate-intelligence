@@ -125,6 +125,7 @@ def parse_register(csv_text: str, county: str) -> list[TransactionRecord]:
                 postal_code=row[COL_EIRCODE].strip() or None,
                 description_original=row[COL_DESCRIPTION].strip() or None,
                 raw_payload=dict(zip(header, row, strict=True)),
+                category="RESIDENTIAL",  # the register covers residential sales only
             )
         )
     return records

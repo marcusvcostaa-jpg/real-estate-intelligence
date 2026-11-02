@@ -167,6 +167,11 @@ def store_transactions(
                 "address_original": r.address_original,
                 "postal_code": r.postal_code,
                 "description_original": r.description_original,
+                "source_property_key": r.source_property_key,
+                "built_area_m2": r.built_area_m2,
+                "land_area_m2": r.land_area_m2,
+                "property_type": r.property_type,
+                "category": r.category,
                 "raw_payload": r.raw_payload,
             }
             for r in items[start : start + _INSERT_BATCH]

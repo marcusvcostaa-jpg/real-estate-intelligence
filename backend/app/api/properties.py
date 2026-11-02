@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
+from app.api.analytics import IN_COUNTRY
 from app.api.deps import current_user, require_role
 from app.database.session import get_db
 from app.models import DedupCandidate, Property, PropertyTransaction, User
@@ -24,6 +25,7 @@ PAGE = 50
 
 @router.get("/properties", dependencies=[Depends(current_user)])
 def search_properties(
+    country: str | None = Query(None, pattern="^[A-Z]{2}$", description="ISO alpha-2"),
     region_id: int | None = None,
     min_price: Decimal | None = Query(None, ge=0),
     max_price: Decimal | None = Query(None, ge=0),
@@ -49,6 +51,9 @@ def search_properties(
         if value is not None:
             where.append(clause)
             params[key] = value
+    if country:  # prices are only comparable within one currency
+        where.append(f"s.region_id IN (SELECT r.id FROM regions r WHERE {IN_COUNTRY})")  # noqa: S608
+        params["country"] = country
     if kind:
         where.append("s.last_is_new" if kind == "new" else "NOT s.last_is_new")
     if full_market_only:
@@ -116,6 +121,9 @@ def property_detail(public_id: uuid.UUID, db: Session = Depends(get_db)) -> dict
         "postal_code": prop.postal_code,
         "property_type": prop.property_type,
         "category": prop.category,
+        # IPTU areas when the source has them (basis BUILT incl. condominium common areas).
+        "built_area_m2": prop.built_area_m2 and float(prop.built_area_m2),
+        "land_area_m2": prop.land_area_m2 and float(prop.land_area_m2),
         "region": region,
         "sales": [{**dict(r._mapping), "price": float(r.price)} for r in sales],
         "pending_reviews": db.scalar(

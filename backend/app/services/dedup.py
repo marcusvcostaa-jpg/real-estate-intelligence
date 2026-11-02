@@ -1,13 +1,14 @@
 """Persists Deduplication results for a transactions source: properties, links, review queue."""
 
 import time
+from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
-from app.agents.deduplication import VERSION, Txn, cluster
+from app.agents.deduplication import VERSION, DedupResult, Txn, cluster
 from app.models import (
     AgentExecution,
     DedupCandidate,
@@ -37,6 +38,40 @@ def load_txns(db: Session, source_id: int) -> list[Txn]:
     return [Txn.build(*row) for row in rows]
 
 
+def keyed_groups(db: Session, source_id: int) -> dict[int, list] | None:
+    """Transactions grouped by the source's own property identifier, keyed by first id, or None
+    when the source has no such identifier (address matching is used instead)."""
+    T = PropertyTransaction
+    rows = db.execute(
+        select(T.id, T.source_property_key, T.transaction_date, T.address_original,
+               T.postal_code, T.property_type, T.category, T.built_area_m2, T.land_area_m2)
+        .where(T.source_id == source_id)
+        .order_by(T.id)
+    ).all()  # fmt: skip
+    if not any(r.source_property_key for r in rows):
+        return None
+    groups: dict[str, list] = defaultdict(list)
+    for r in rows:  # a row without a key is its own property
+        groups[r.source_property_key or f"id:{r.id}"].append(r)
+    return {g[0].id: g for g in groups.values()}
+
+
+def _latest(rows: list, attr: str):
+    return next((getattr(r, attr) for r in reversed(rows) if getattr(r, attr) is not None), None)
+
+
+def _describe_keyed(rows: list) -> dict:
+    rows = sorted(rows, key=lambda r: (r.transaction_date, r.id))
+    return {
+        "property_type": _latest(rows, "property_type") or "UNKNOWN",
+        "category": _latest(rows, "category") or "UNKNOWN",
+        "address_display": rows[-1].address_original,
+        "postal_code": _latest(rows, "postal_code"),
+        "built_area_m2": _latest(rows, "built_area_m2"),
+        "land_area_m2": _latest(rows, "land_area_m2"),
+    }
+
+
 def apply_dedup(db: Session, source_id: int) -> dict:
     """Link every transaction of the source to a property (creating properties as needed).
 
@@ -44,9 +79,18 @@ def apply_dedup(db: Session, source_id: int) -> dict:
     cluster that would join two existing properties is not merged automatically (review)."""
     started = time.perf_counter()
     source = db.get(Source, source_id)
-    txns = load_txns(db, source_id)
-    by_id = {t.id: t for t in txns}
-    result = cluster(txns)
+    keyed = keyed_groups(db, source_id)
+    if keyed is not None:
+        # The source identifies properties itself (e.g. São Paulo SQL): exact grouping, no
+        # fuzzy matching and nothing to review.
+        txns = [r for rows in keyed.values() for r in rows]
+        by_id: dict = {}
+        result = DedupResult([[r.id for r in rows] for rows in keyed.values()], [], [],
+                             {"method": "source_property_key"})  # fmt: skip
+    else:
+        txns = load_txns(db, source_id)
+        by_id = {t.id: t for t in txns}
+        result = cluster(txns)
 
     current = dict(
         db.execute(
@@ -76,11 +120,23 @@ def apply_dedup(db: Session, source_id: int) -> dict:
         if len(existing) > 1:
             conflicts += 1  # ponytail: left as-is; surfaced in stats for review tooling
             continue
-        # Most recent sale describes the property; prefer the latest one with an Eircode.
-        ordered = sorted((by_id[tid] for tid in group), key=lambda t: t.sale_date)
-        latest = ordered[-1]
-        with_code = [t for t in ordered if t.eircode]
-        region_id = region_ids[latest.id]
+        if keyed is not None:
+            rows = keyed[group[0]]
+            described = _describe_keyed(rows)
+            region_id = region_ids[max(rows, key=lambda r: (r.transaction_date, r.id)).id]
+        else:
+            # Most recent sale describes the property; prefer the latest one with an Eircode.
+            ordered = sorted((by_id[tid] for tid in group), key=lambda t: t.sale_date)
+            latest = ordered[-1]
+            with_code = [t for t in ordered if t.eircode]
+            region_id = region_ids[latest.id]
+            described = {
+                "property_type": "DWELLING",  # source does not say house vs apartment
+                "category": "RESIDENTIAL",
+                "address_display": latest.address,
+                "address_normalized": latest.norm.text,
+                "postal_code": with_code[-1].eircode if with_code else None,
+            }
         to_create.append(
             (
                 group,
@@ -88,11 +144,7 @@ def apply_dedup(db: Session, source_id: int) -> dict:
                     "country_id": source.country_id,
                     "region_id": region_id,
                     "city_id": city_of_region.get(region_id),
-                    "property_type": "DWELLING",  # source does not say house vs apartment
-                    "category": "RESIDENTIAL",
-                    "address_display": latest.address,
-                    "address_normalized": latest.norm.text,
-                    "postal_code": with_code[-1].eircode if with_code else None,
+                    **described,
                     "validation_status": ValidationStatus.PENDING,
                 },
             )

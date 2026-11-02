@@ -3,7 +3,7 @@
 > PostgreSQL 16 + PostGIS 3. Este documento é a **especificação** para a migration inicial (Fase 2).
 > Depois que a migration existir, **a fonte da verdade é o Alembic**; este arquivo é atualizado junto com cada migration.
 >
-> Estado: migrations `54aec88d8bff` (inicial), `1e8e9dae7156` (candidatos de dedup para transações, issue aberta única) `e33a05b08bc5` (vizinhança tolerante) e `f5c5a72e597a` (resumo de vendas por imóvel) aplicadas (modelos em `backend/app/models/`). A view `region_neighbors` usa uma regra provisória (polígonos que se tocam, ou centróides a até 1,5 km quando falta polígono), a revisar com dados reais na Fase 5.
+> Estado: migrations `54aec88d8bff` (inicial), `1e8e9dae7156` (candidatos de dedup para transações, issue aberta única) `e33a05b08bc5` (vizinhança tolerante) `f5c5a72e597a` (resumo de vendas por imóvel) e `279ef3428b22` (chave de imóvel da fonte, áreas e categoria por transação) aplicadas (modelos em `backend/app/models/`). A view `region_neighbors` usa uma regra provisória (polígonos que se tocam, ou centróides a até 1,5 km quando falta polígono), a revisar com dados reais na Fase 5.
 
 ## Convenções
 
@@ -209,6 +209,9 @@ property_transactions (                        -- preço EFETIVAMENTE transacion
   is_full_market_price bool, vat_exclusive bool,
   address_original text, postal_code text, description_original text,
   location geography(Point,4326), region_id FK NULL,
+  source_property_key text,                     -- identificador do imóvel na própria fonte (ex.: 'sql:<SQL IPTU>'); dedup agrupa por ele
+  built_area_m2 numeric(10,2), land_area_m2 numeric(10,2), -- áreas do objeto transacionado como a fonte informa (NULL se descreveriam outra coisa)
+  property_type text, category text,           -- category: RESIDENTIAL | COMMERCIAL | LAND | OTHER (PPR = RESIDENTIAL)
   raw_payload jsonb NOT NULL, created_at,
   UNIQUE (source_id, external_id)
 )

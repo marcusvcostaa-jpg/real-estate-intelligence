@@ -13,13 +13,13 @@ Paginação: `?limit=&cursor=` (cursor opaco). Erros: `{"detail": "...", "code":
 | GET | `/health` | — | ✅ `{status, db, redis}`; 503 se algum falhar | 2 |
 | POST | `/sources` | ADMIN | Cadastra fonte (nasce PENDING_APPROVAL) | 3 |
 | POST | `/sources/{id}/permissions` | ADMIN | Registra/aprova permissão com evidência | 3 |
-| GET | `/properties?region_id=&min_price=&max_price=&sold_from=&sold_to=&kind=new\|second_hand&full_market_only=&repeat_sales_only=&q=&cursor=` | VIEWER | ✅ Busca sobre a **última venda** de cada imóvel, ordenada por data, 50 por página, `next_cursor`. Área/quartos/banheiros/garagem: indisponíveis na fonte atual | 7 |
+| GET | `/properties?country=&region_id=&min_price=&max_price=&sold_from=&sold_to=&kind=new\|second_hand&full_market_only=&repeat_sales_only=&q=&cursor=` | VIEWER | ✅ Busca sobre a **última venda** de cada imóvel, ordenada por data, 50 por página, `next_cursor`. `country` (ISO alfa-2) restringe a um país/moeda. Detalhe (`/properties/{public_id}`) inclui `built_area_m2`/`land_area_m2` quando a fonte informa (IPTU, São Paulo) | 7–8 |
 | GET | `/properties/{public_id}` | VIEWER | ✅ Imóvel + todas as vendas (texto original, flags de mercado/IVA, fonte) + revisões pendentes; 404 | 7 |
 | GET | `/listings/{id}` | VIEWER | Anúncio com payload normalizado | 3 |
 | GET | `/dedup/candidates?decision=PENDING&limit=&after_id=` | ANALYST | ✅ Fila de revisão: venda × imóvel candidato, score, vetos, motivo, total | 7 |
 | POST | `/dedup/candidates/{id}/decision` | ADMIN | ✅ Body `{decision: SAME_PROPERTY\|DIFFERENT}`; SAME_PROPERTY move a venda (registro de imóvel vazio é removido; nenhuma venda apagada); 409 se já decidido | 7 |
 | POST | `/cities` | ADMIN | Cadastra cidade semente (dispara RegionExplorer) | 5 |
-| GET | `/regions?parent_id=` | VIEWER | ✅ GeoJSON FeatureCollection (topo, ou filhas de `parent_id`); propriedades: `id, name, level, status, parent_id, last_searched_at, children, sales, sales_12m, median_12m`; `median_basis` descreve a mediana (transacionado, mercado pleno, com IVA, 12 meses). Geometria simplificada só para exibição | 5 |
+| GET | `/regions?parent_id=&country=` | VIEWER | ✅ GeoJSON FeatureCollection (topo, ou filhas de `parent_id`; `country` filtra o topo); propriedades: `id, name, level, status, parent_id, last_searched_at, children, sales, sales_12m, median_12m, country, currency`; `median_basis` descreve a mediana (por país; objeto por país sem `country`). Geometria simplificada só para exibição | 5–8 |
 | GET | `/regions/{id}` | VIEWER | ✅ Detalhe: região pai, contadores (`sales`, `properties`, filhos), mediana, `coverage[]` por fonte (status, concluída, próxima), `neighbors[]`; 404 se não existir | 5 |
 | GET | `/coverage/summary` | VIEWER | ✅ `regions_by_status` (topo e todas), `totals` (imóveis, transações, anúncios, fontes ativas, última atualização, revisões de dedup pendentes), `attributions[]` obrigatórias | 5 |
 | GET | `/jobs?status=&limit=` | ANALYST | ✅ Jobs mais recentes: região, fonte, status, gatilho, tentativa, agendamento, contadores, último erro | 6 |
@@ -28,9 +28,11 @@ Paginação: `?limit=&cursor=` (cursor opaco). Erros: `{"detail": "...", "code":
 | GET | `/sources` | VIEWER | ✅ Fontes com status, limites, **requisições restantes hoje**, última permissão e atribuição | 6 |
 | POST | `/jobs` | ADMIN | Pesquisa manual de uma região × fonte | 6 |
 | GET | `/analytics/kpis` | VIEWER | ✅ Indicadores da página inicial | 7 |
-| GET | `/analytics/areas` | VIEWER | ✅ Por área de topo: vendas, mediana/média 12m, mediana 12m anterior, variação %, novos 12m, imóveis, revendidos; `unavailable` lista o que a fonte não permite | 7 |
+| GET | `/analytics/countries` | VIEWER | ✅ Países com áreas pesquisadas (`iso2, name, currency`) para o seletor do dashboard | 8 |
+| GET | `/analytics/areas?country=IE` | VIEWER | ✅ Por área de topo do país: vendas, mediana/média 12m, mediana 12m anterior, variação %, mediana por m² 12m (`price_m2_basis`, só onde há área), novos 12m (`null` se a fonte não diz), imóveis, revendidos; `currency`, `basis`, `unavailable` (códigos `no_floor_area`, `no_room_counts`, `no_parking`, `no_new_flag`) | 7–8 |
 | GET | `/analytics/timeseries?region_ids=1,2&months=60` | VIEWER | ✅ Mediana e contagem mensais (1 a 4 áreas), `provisional` nos meses recentes | 7 |
-| GET | `/analytics/price-bands?region_id=` | VIEWER | ✅ Vendas dos últimos 12 meses por faixa de preço | 7 |
+| GET | `/analytics/price-bands?country=IE&region_id=` | VIEWER | ✅ Vendas dos últimos 12 meses por faixa de preço (faixas na moeda do país) | 7–8 |
+| GET | `/analytics/timeseries?...` | VIEWER | Regiões de países diferentes na mesma série → 400 (moedas diferentes) | 8 |
 | GET | `/analytics/regions` | VIEWER | Preço médio, preço/m², área média etc. por região | 7 |
 | GET | `/analytics/compare` | VIEWER | Comparação entre bairros/cidades | 7 |
 

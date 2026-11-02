@@ -2,7 +2,7 @@
 
 Plataforma de inteligência imobiliária internacional: coleta de fontes **autorizadas**, padronização, deduplicação de imóveis entre portais, histórico de preços, controle de cobertura geográfica com PostGIS e dashboard com mapas interativos.
 
-> **Status:** Fase 7 concluída — dashboard com indicadores, análises de mercado, busca de imóveis com histórico, mapa e revisão de duplicados (http://localhost:3000), alimentado automaticamente pelo orquestrador (Fase 6). Ver [docs/ROADMAP.md](docs/ROADMAP.md).
+> **Status:** Fase 8 em andamento — Irlanda (4 condados) e, desde 2026-11-01, Brasil começando pelo município de São Paulo (ITBI + limites IBGE). Dashboard por país em http://localhost:3000, alimentado automaticamente pelo orquestrador. Ver [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Documentação
 

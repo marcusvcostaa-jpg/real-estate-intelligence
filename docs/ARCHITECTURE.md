@@ -36,6 +36,8 @@
 | 18 | Exclusão mútua por locks consultivos do Postgres em conexão dedicada | Sem tabela de locks; sobrevive aos commits do trabalho protegido | Vários bancos/instâncias |
 | 19 | View materializada `property_sales_summary` para a busca de imóveis | Filtrar/ordenar 320k imóveis pela última venda sem subconsulta por linha | Atualização incremental se o refresh (~2 s) crescer |
 | 20 | Gráficos em SVG próprio (sem biblioteca) seguindo o guia de visualização | 2 componentes pequenos cobrem linhas e barras; zero dependência | Tipos de gráfico novos (mapa de calor, dispersão) |
+| 21 | Identificador de imóvel da própria fonte (`source_property_key`, ex.: SQL do IPTU) tem precedência sobre casamento de endereço na deduplicação | Agrupamento exato, sem fuzzy nem revisão; o caminho irlandês (endereço/Eircode) fica intacto | Ligar o mesmo imóvel entre fontes diferentes (ex.: ITBI × anúncios) |
+| 22 | Estatísticas e telas por país (uma moeda por vez); regras de validação e base estatística por país | Nunca comparar euro com real; cada fonte tem semântica própria de "valor de mercado" | Conversão cambial só se houver demanda explícita (com data e fonte do câmbio) |
 
 ## 3. Componentes
 
@@ -161,4 +163,4 @@ Cada conector tem testes de contrato com fixtures gravadas (respostas reais anon
 | 5 — Geografia | ✅ limites oficiais, herança, expansão real (4 condados), mapa |
 | 6 — Agentes | ✅ orquestrador automático, filas, recuperação, Flower |
 | 7 — Dashboard | ✅ indicadores, análises, busca, histórico, revisão |
-| 8 | Contínuo — ver [ROADMAP.md](ROADMAP.md) |
+| 8 | Contínuo — Brasil/São Paulo em andamento; ver [ROADMAP.md](ROADMAP.md) |

@@ -139,3 +139,11 @@ Entregue (2026-11-01), sobre dados reais (4 condados, 361 mil vendas, 320 mil im
 
 ### Fase 8 — Escalabilidade (contínuo)
 - Novas fontes/países (skill `add-source-connector`), particionamento de tabelas grandes, Nominatim self-hosted, otimização.
+
+Andamento (2026-11-01) — **Brasil, começando por São Paulo** (escolha do responsável):
+- ✅ Fontes aprovadas pelo responsável: ITBI da Prefeitura de São Paulo (`br_sp_itbi`) e malhas do IBGE (município + 96 distritos).
+- ✅ Conector `br_sp_itbi`: XLSX anual descoberto na página da Fazenda, GET condicional com cache, 5 anos (cursor por ano), linhas malformadas descartadas sem gravar; testes com planilha sintética.
+- ✅ Separação por fonte/país sem alterar a Irlanda: dedup por identificador da fonte (SQL) quando existe, validação de código postal por país (CEP × Eircode), base estatística por país, áreas do IPTU (`built_area_m2`, `land_area_m2`) e categoria por transação (migration `279ef3428b22`; PPR marcado como residencial).
+- ✅ Dashboard por país (Análises, Mapa, Imóveis): moeda própria, preço/m² para São Paulo (base: área construída IPTU), indicadores indisponíveis por país.
+- ✅ Primeira coleta validada (2026 e 2025): 386.397 vendas → 374.020 imóveis, contagem e soma conferidas contra as planilhas. ⏳ 2024–2022 pelo orquestrador (4 arquivos/dia); até lá a variação anual de São Paulo usa um ano anterior incompleto.
+- Pendências: localizar vendas nos distritos (CEP → coordenadas exige fonte aprovada); outras capitais (Recife ODbL, Porto Alegre); compactação do `raw_payload`.

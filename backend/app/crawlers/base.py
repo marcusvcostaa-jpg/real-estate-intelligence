@@ -40,6 +40,13 @@ class TransactionRecord:
     postal_code: str | None
     description_original: str | None
     raw_payload: dict
+    # The source's own identifier of the physical property (e.g. a cadastral number). When set,
+    # deduplication groups by it instead of matching addresses.
+    source_property_key: str | None = None
+    built_area_m2: Decimal | None = None
+    land_area_m2: Decimal | None = None
+    property_type: str | None = None  # APARTMENT, HOUSE, LAND, ...
+    category: str | None = None  # RESIDENTIAL, COMMERCIAL, LAND, OTHER
 
 
 @dataclass

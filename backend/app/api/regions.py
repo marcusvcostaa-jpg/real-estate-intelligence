@@ -1,21 +1,31 @@
 """Regions as GeoJSON for the map, region details and coverage summary.
 
-Sale statistics are TRANSACTED prices (Property Price Register): the median uses only
-full-market, VAT-inclusive sales of the last 12 months, and is labelled as such."""
+Sale statistics are TRANSACTED prices from official registers: the median uses the same market
+basis as the analytics (residential, whole-property market sales) over the last 12 months, in
+the currency of the region's country."""
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.api.analytics import BASIS, IN_COUNTRY, MARKET
 from app.api.deps import current_user
 from app.database.session import get_db
-from app.geographic.boundaries import ATTRIBUTION as BOUNDARY_ATTRIBUTION
+from app.geographic import boundaries, ibge
 
 router = APIRouter(tags=["regions"], dependencies=[Depends(current_user)])
 
-MEDIAN_BASIS = "transacted, full market price, VAT-inclusive, last 12 months"
+MEDIAN_BASIS = {country: f"{basis}, last 12 months" for country, basis in BASIS.items()}
+BOUNDARY_ATTRIBUTIONS = {
+    boundaries.BOUNDARY_SOURCE: boundaries.ATTRIBUTION,
+    ibge.BOUNDARY_SOURCE: ibge.ATTRIBUTION,
+}
+_COUNTRY = """(SELECT co.iso2 FROM cities c JOIN countries co ON co.id = c.country_id
+               WHERE c.id = r.city_id) AS country,
+              (SELECT co.default_currency FROM cities c JOIN countries co ON co.id = c.country_id
+               WHERE c.id = r.city_id) AS currency"""
 
-_STATS = """
+_STATS = f"""
     SELECT region_id,
            count(*) AS sales,
            count(*) FILTER (WHERE recent) AS sales_12m,
@@ -23,24 +33,25 @@ _STATS = """
     FROM (
         SELECT region_id, price,
                transaction_date >= current_date - interval '12 months'
-                 AND is_full_market_price AND NOT vat_exclusive AS recent
+                 AND {MARKET} AS recent
         FROM property_transactions
     ) t
     GROUP BY region_id
-"""
+"""  # noqa: S608 - only the constant MARKET fragment is interpolated
 
 _REGIONS = text(
     f"""
     WITH stats AS ({_STATS})
     SELECT r.id, r.name, r.level, r.status, r.parent_id, r.last_searched_at,
            (SELECT count(*) FROM regions c WHERE c.parent_id = r.id) AS children,
-           s.sales, s.sales_12m, s.median_12m,
+           s.sales, s.sales_12m, s.median_12m, {_COUNTRY},
            ST_AsGeoJSON(ST_SimplifyPreserveTopology(r.geom, :tolerance), 5)::json AS geometry
     FROM regions r
     LEFT JOIN stats s ON s.region_id = r.id
     WHERE r.geom IS NOT NULL
       AND (CASE WHEN CAST(:parent_id AS bigint) IS NULL THEN r.parent_id IS NULL
                 ELSE r.parent_id = CAST(:parent_id AS bigint) END)
+      AND (CAST(:country AS text) IS NULL OR {IN_COUNTRY})
     ORDER BY r.name
     """  # noqa: S608 - only a constant fragment is interpolated; values are bound
 )
@@ -57,14 +68,16 @@ def _feature(row) -> dict:
 @router.get("/regions")
 def regions_geojson(
     parent_id: int | None = Query(None, description="children of this region; omit for top level"),
+    country: str | None = Query(None, pattern="^[A-Z]{2}$", description="ISO alpha-2 filter"),
     db: Session = Depends(get_db),
 ) -> dict:
     tolerance = 0.002 if parent_id is None else 0.0003  # degrees; map display only
-    rows = db.execute(_REGIONS, {"parent_id": parent_id, "tolerance": tolerance}).all()
+    params = {"parent_id": parent_id, "tolerance": tolerance, "country": country}
+    rows = db.execute(_REGIONS, params).all()
     return {
         "type": "FeatureCollection",
         "features": [_feature(r) for r in rows],
-        "median_basis": MEDIAN_BASIS,
+        "median_basis": MEDIAN_BASIS.get(country) if country else MEDIAN_BASIS,
     }
 
 
@@ -76,7 +89,7 @@ def region_detail(region_id: int, db: Session = Depends(get_db)) -> dict:
             WITH stats AS ({_STATS})
             SELECT r.id, r.name, r.level, r.status, r.parent_id, r.boundary_source,
                    r.last_searched_at, p.name AS parent_name,
-                   s.sales, s.sales_12m, s.median_12m,
+                   s.sales, s.sales_12m, s.median_12m, {_COUNTRY},
                    (SELECT count(*) FROM regions c WHERE c.parent_id = r.id) AS children,
                    (SELECT count(*) FROM properties pr WHERE pr.region_id = r.id) AS properties
             FROM regions r
@@ -91,7 +104,7 @@ def region_detail(region_id: int, db: Session = Depends(get_db)) -> dict:
         raise HTTPException(404, "Region not found")
     detail = dict(row._mapping)
     detail["median_12m"] = detail["median_12m"] and float(detail["median_12m"])
-    detail["median_basis"] = MEDIAN_BASIS
+    detail["median_basis"] = MEDIAN_BASIS.get(detail["country"])
     detail["coverage"] = [
         dict(c._mapping)
         for c in db.execute(
@@ -159,8 +172,12 @@ def coverage_summary(db: Session = Depends(get_db)) -> dict:
             )
         )
     )
+    used = db.scalars(text("SELECT DISTINCT boundary_source FROM regions")).all()
     return {
         "regions_by_status": by_status,
         "totals": dict(totals._mapping),
-        "attributions": [*attributions, BOUNDARY_ATTRIBUTION],
+        "attributions": [
+            *attributions,
+            *(label for source, label in BOUNDARY_ATTRIBUTIONS.items() if source in used),
+        ],
     }

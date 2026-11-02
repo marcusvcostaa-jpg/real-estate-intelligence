@@ -202,6 +202,14 @@ class PropertyTransaction(Base):
     address_original: Mapped[str | None] = mapped_column(Text)
     postal_code: Mapped[str | None] = mapped_column(Text)
     description_original: Mapped[str | None] = mapped_column(Text)
+    # Source's own property identifier (e.g. São Paulo SQL); dedup groups by it when present.
+    source_property_key: Mapped[str | None] = mapped_column(Text)
+    # Areas of the transacted object as the source states them (NULL when they would describe
+    # something else, e.g. a whole plot for a fractional transfer). Never estimated.
+    built_area_m2: Mapped[Decimal | None] = mapped_column(Area)
+    land_area_m2: Mapped[Decimal | None] = mapped_column(Area)
+    property_type: Mapped[str | None] = mapped_column(Text)
+    category: Mapped[str | None] = mapped_column(Text)  # RESIDENTIAL, COMMERCIAL, LAND, OTHER
     location = mapped_column(Geography("POINT", srid=4326), nullable=True)
     region_id: Mapped[int | None] = mapped_column(ForeignKey("regions.id"), index=True)
     raw_payload: Mapped[dict] = mapped_column(JSONB)
