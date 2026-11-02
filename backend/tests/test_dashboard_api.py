@@ -176,3 +176,46 @@ def test_statistics_never_mix_countries(client, db):
     bands = client.get("/api/v1/analytics/price-bands?country=BR", headers=h).json()
     assert bands["currency"] == "BRL" and sum(b["sales"] for b in bands["bands"]) == 0
     assert client.get("/api/v1/analytics/areas?country=XX", headers=h).status_code == 404
+
+
+def test_collection_places_and_manual_request(client, db):
+    from app.models import SearchJob, SourcePermission
+    from app.models.enums import PermissionStatus
+
+    region, source = setup_source(db)
+    viewer = headers(client, db, role=UserRole.VIEWER, email="viewer@example.com")
+    places = client.get("/api/v1/collection/places?country=IE", headers=viewer).json()
+    assert [(p["region"], p["source"], p["status"]) for p in places] == [
+        ("County Dublin", "ie_ppr", "NOT_STARTED")
+    ]
+    body = {"region_id": region.id, "source": "ie_ppr"}
+    assert client.post("/api/v1/collection/requests", json=body, headers=viewer).status_code == 403
+
+    admin = headers(client, db, role=UserRole.ADMIN, email="admin@example.com")
+    first = client.post("/api/v1/collection/requests", json=body, headers=admin)
+    assert first.status_code == 201 and first.json()["triggered_by"] == "MANUAL"
+    again = client.post("/api/v1/collection/requests", json=body, headers=admin).json()
+    assert again["id"] == first.json()["id"]  # one active job per search
+    assert db.get(SearchJob, again["id"]).priority == 10
+    assert client.get("/api/v1/collection/places", headers=viewer).json()[0]["active_job_id"]
+
+    other = {"region_id": region.id, "source": "br_sp_itbi"}
+    assert client.post("/api/v1/collection/requests", json=other, headers=admin).status_code == 404
+
+    from datetime import UTC, datetime
+
+    from app.models import SearchCoverage
+    from app.services.collector import filters_hash
+
+    db.query(SearchJob).delete()
+    db.add(SearchCoverage(region_id=region.id, source_id=source.id, filters_hash=filters_hash({}),
+                          refresh_interval=source.min_refresh_interval,
+                          last_completed_at=datetime.now(UTC)))  # fmt: skip
+    db.commit()
+    recent = client.post("/api/v1/collection/requests", json=body, headers=admin)
+    assert recent.status_code == 409 and "next collection allowed" in recent.json()["detail"]
+
+    db.query(SourcePermission).update({"status": PermissionStatus.REVOKED})
+    db.commit()
+    refused = client.post("/api/v1/collection/requests", json=body, headers=admin)
+    assert refused.status_code == 409 and "cannot be contacted" in refused.json()["detail"]

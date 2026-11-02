@@ -9,6 +9,7 @@ const NAV = [
   { href: "/analytics", label: "Análises" },
   { href: "/properties", label: "Imóveis" },
   { href: "/review", label: "Revisão" },
+  { href: "/collect", label: "Coletas" },
 ];
 
 export default function DashboardLayout({ children }: LayoutProps<"/">) {

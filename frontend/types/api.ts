@@ -170,3 +170,31 @@ export type ReviewItem = {
 };
 
 export type ReviewQueue = { items: ReviewItem[]; total: number };
+
+export type CollectionPlace = {
+  region_id: number;
+  region: string;
+  country: string;
+  source: string;
+  source_name: string;
+  status: "NOT_STARTED" | "QUEUED" | "IN_PROGRESS" | "PARTIALLY_COMPLETED" | "COMPLETED" | "FAILED" | "REQUIRES_REVIEW";
+  last_completed_at: string | null;
+  next_due_at: string | null;
+  manual_blocked_until: string | null; // source's minimum refresh interval not over yet
+  records: number;
+  active_job_id: number | null;
+  active_job_status: string | null;
+};
+
+export type JobRow = {
+  id: number;
+  region: string;
+  source: string;
+  status: string;
+  triggered_by: string;
+  scheduled_for: string | null;
+  finished_at: string | null;
+  records: number;
+  new_records: number;
+  last_error: string | null;
+};

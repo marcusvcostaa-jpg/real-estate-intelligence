@@ -1,17 +1,19 @@
-"""Operational visibility and recovery: jobs, agent executions, sources, manual retry."""
+"""Operational visibility and recovery: jobs, agent executions, sources, manual retry and
+manual collection requests for places an approved source covers."""
 
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import current_user, require_role
 from app.database.session import get_db
-from app.models import SearchJob, Source, User
+from app.models import Region, SearchCoverage, SearchJob, Source, User
 from app.models.enums import JobStatus, UserRole
-from app.services.collector import remaining_budget
+from app.services.collector import create_job, filters_hash, gate_refusal, remaining_budget
 
 router = APIRouter(tags=["operations"])
 analyst = require_role(UserRole.ANALYST, UserRole.ADMIN)
@@ -111,3 +113,77 @@ def list_sources(db: Session = Depends(get_db)) -> list[dict]:
             }
         )
     return out
+
+
+_PLACES = text(
+    """
+    SELECT r.id AS region_id, r.name AS region, co.iso2 AS country, s.code AS source,
+           s.name AS source_name, COALESCE(sc.status::text, 'NOT_STARTED') AS status,
+           sc.last_completed_at, sc.next_due_at,
+           CASE WHEN sc.last_completed_at + s.min_refresh_interval > now()
+                THEN sc.last_completed_at + s.min_refresh_interval END AS manual_blocked_until,
+           COALESCE(sc.listings_found, 0) AS records, j.id AS active_job_id,
+           j.status AS active_job_status
+    FROM regions r
+    JOIN cities ci ON ci.id = r.city_id
+    JOIN countries co ON co.id = ci.country_id
+    JOIN sources s ON r.source_location_ids ? s.code
+    LEFT JOIN search_coverage sc ON sc.region_id = r.id AND sc.source_id = s.id
+                                AND sc.filters_hash = :fhash
+    LEFT JOIN LATERAL (SELECT id, status FROM search_jobs
+                       WHERE region_id = r.id AND source_id = s.id
+                         AND status IN ('QUEUED', 'IN_PROGRESS')
+                       ORDER BY id DESC LIMIT 1) j ON true
+    WHERE CAST(:country AS text) IS NULL OR co.iso2 = CAST(:country AS text)
+    ORDER BY co.iso2, r.name
+    """
+)
+
+
+@router.get("/collection/places", dependencies=[Depends(current_user)])
+def collection_places(country: str | None = None, db: Session = Depends(get_db)) -> list[dict]:
+    """Every place an approved-or-pending source can search, with its coverage and active job."""
+    rows = db.execute(_PLACES, {"country": country, "fhash": filters_hash({})})
+    return [dict(r._mapping) for r in rows]
+
+
+class CollectionRequest(BaseModel):
+    region_id: int
+    source: str
+
+
+MANUAL_PRIORITY = 10  # ahead of scheduled refreshes and expansion (default 100)
+
+
+@router.post("/collection/requests", status_code=201, dependencies=[Depends(admin)])
+def request_collection(body: CollectionRequest, db: Session = Depends(get_db)) -> dict:
+    """Queue a collection now for a place the source covers. Never contacts a source the gate
+    refuses, and respects the source's minimum refresh interval (politeness agreed in its
+    permission). The orchestrator dispatches it in its next cycle (<= 5 min)."""
+    source = db.scalar(select(Source).where(Source.code == body.source))
+    region = db.get(Region, body.region_id)
+    if source is None or region is None:
+        raise HTTPException(404, "Source or place not found")
+    if source.code not in region.source_location_ids:
+        raise HTTPException(422, f"{source.code} does not cover {region.name}")
+    if refusal := gate_refusal(db, source):
+        raise HTTPException(409, f"Source cannot be contacted: {refusal}")
+    coverage = db.scalar(
+        select(SearchCoverage).where(
+            SearchCoverage.region_id == region.id,
+            SearchCoverage.source_id == source.id,
+            SearchCoverage.filters_hash == filters_hash({}),
+        )
+    )
+    now = datetime.now(UTC)
+    if coverage and coverage.last_completed_at:
+        allowed = coverage.last_completed_at + source.min_refresh_interval
+        if allowed > now:
+            raise HTTPException(
+                409, f"Collected recently; next collection allowed from {allowed:%Y-%m-%d %H:%M}"
+            )
+    job = create_job(db, region.id, source.id, {}, "MANUAL")  # or the already active one
+    if job.status == JobStatus.QUEUED:
+        job.priority = MANUAL_PRIORITY  # scheduled_for kept: a budget wait stays a wait
+        db.commit()
+    return {"id": job.id, "status": job.status, "triggered_by": job.triggered_by}

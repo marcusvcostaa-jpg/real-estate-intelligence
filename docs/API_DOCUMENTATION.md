@@ -26,7 +26,8 @@ Paginação: `?limit=&cursor=` (cursor opaco). Erros: `{"detail": "...", "code":
 | POST | `/jobs/{id}/retry` | ADMIN | ✅ Reenfileira job FAILED/SKIPPED/CANCELLED (409 se houver outro ativo para a mesma pesquisa); o Collector reaplica todas as verificações | 6 |
 | GET | `/agents/executions?agent=&limit=` | ANALYST | ✅ Execuções dos agentes (orquestrador, collector, dedup) com saída e erro | 6 |
 | GET | `/sources` | VIEWER | ✅ Fontes com status, limites, **requisições restantes hoje**, última permissão e atribuição | 6 |
-| POST | `/jobs` | ADMIN | Pesquisa manual de uma região × fonte | 6 |
+| GET | `/collection/places?country=` | VIEWER | ✅ Cada lugar × fonte que o cobre (`source_location_ids`): situação da cobertura, última coleta, próxima automática, registros lidos, job ativo e `manual_blocked_until` (intervalo mínimo da fonte ainda não passou) | 8 |
+| POST | `/collection/requests` | ADMIN | ✅ Body `{region_id, source}`: pesquisa manual de um lugar × fonte (gatilho `MANUAL`, prioridade 10, despachada no próximo ciclo do orquestrador). 404 lugar/fonte inexistente; 422 fonte não cobre o lugar; 409 se o gate recusa a fonte ou o intervalo mínimo não passou. Se já há job ativo, devolve-o (e o prioriza) | 8 |
 | GET | `/analytics/kpis` | VIEWER | ✅ Indicadores da página inicial | 7 |
 | GET | `/analytics/countries` | VIEWER | ✅ Países com áreas pesquisadas (`iso2, name, currency`) para o seletor do dashboard | 8 |
 | GET | `/analytics/areas?country=IE` | VIEWER | ✅ Por área de topo do país: vendas, mediana/média 12m, mediana 12m anterior, variação %, mediana por m² 12m (`price_m2_basis`, só onde há área), novos 12m (`null` se a fonte não diz), imóveis, revendidos; `currency`, `basis`, `unavailable` (códigos `no_floor_area`, `no_room_counts`, `no_parking`, `no_new_flag`) | 7–8 |
